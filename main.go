@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,7 +24,10 @@ func (c *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 	// Ensure that we called the command audit-stack
 	switch args[0] {
 	case "audit-stack":
-		fmt.Println("This command outputs dummy text.")
+		err := printApps(cliConnection)
+		if err != nil {
+			log.Fatalf("error talking to cf: %v\n", err)
+		}
 
 		exitChan := make(chan struct{})
 		signalChan := make(chan os.Signal, 1)
@@ -47,7 +51,8 @@ func (c *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 	case "CLI-MESSAGE-UNINSTALL":
 		os.Exit(0)
 	default:
-		os.Exit(17)
+		fmt.Fprintln(os.Stderr, "Unknown argument provided")
+		os.Exit(1)
 	}
 }
 
@@ -77,6 +82,32 @@ func (c *Plugin) GetMetadata() plugin.PluginMetadata {
 			},
 		},
 	}
+}
+
+func printApps(cliConnection plugin.CliConnection) error {
+	org, err := cliConnection.GetCurrentOrg()
+	if err != nil {
+		return err
+	}
+
+	space, err := cliConnection.GetCurrentSpace()
+	if err != nil {
+		return err
+	}
+
+	apps, err := cliConnection.GetApps()
+	if err != nil {
+		return err
+	}
+
+	for _, app := range apps {
+		appInfo, err := cliConnection.GetApp(app.Name)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s/%s/%s %s\n", org.Name, space.Name, app.Name, appInfo.Stack.Name)
+	}
+	return nil
 }
 
 func main() {
