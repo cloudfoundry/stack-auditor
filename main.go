@@ -14,6 +14,10 @@ import (
 
 type Plugin struct{}
 
+func main() {
+	plugin.Start(new(Plugin))
+}
+
 func (c *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 	if len(args) == 0 {
 		err := errors.New("no command line arguments provided")
@@ -24,10 +28,12 @@ func (c *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 	// Ensure that we called the command audit-stack
 	switch args[0] {
 	case "audit-stack":
-		err := printApps(cliConnection)
+		info, err := Audit(cliConnection)
 		if err != nil {
 			log.Fatalf("error talking to cf: %v\n", err)
 		}
+
+		fmt.Println(info)
 
 		exitChan := make(chan struct{})
 		signalChan := make(chan os.Signal, 1)
@@ -52,7 +58,7 @@ func (c *Plugin) Run(cliConnection plugin.CliConnection, args []string) {
 		os.Exit(0)
 	default:
 		fmt.Fprintln(os.Stderr, "Unknown argument provided")
-		os.Exit(1)
+		os.Exit(17)
 	}
 }
 
@@ -84,32 +90,21 @@ func (c *Plugin) GetMetadata() plugin.PluginMetadata {
 	}
 }
 
-func printApps(cliConnection plugin.CliConnection) error {
-	org, err := cliConnection.GetCurrentOrg()
-	if err != nil {
-		return err
-	}
+func Audit(cliConnection plugin.CliConnection) (string, error) {
+	appJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/apps")
+	orgs, _ := cliConnection.GetOrgs()
+	spaceJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/spaces")
+	stackJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/stacks")
 
-	space, err := cliConnection.GetCurrentSpace()
-	if err != nil {
-		return err
-	}
+	fmt.Printf("%v \n\n", appJSON)
+	fmt.Println("-------------------------------------------------")
+	fmt.Printf("%v \n\n", orgs)
+	fmt.Println("-------------------------------------------------")
+	fmt.Printf("%v \n\n", orgs)
+	fmt.Println("-------------------------------------------------")
+	fmt.Printf("%v \n\n", spaceJSON)
+	fmt.Println("-------------------------------------------------")
+	fmt.Printf("%v \n\n", stackJSON)
 
-	apps, err := cliConnection.GetApps()
-	if err != nil {
-		return err
-	}
-
-	for _, app := range apps {
-		appInfo, err := cliConnection.GetApp(app.Name)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s/%s/%s %s\n", org.Name, space.Name, app.Name, appInfo.Stack.Name)
-	}
-	return nil
-}
-
-func main() {
-	plugin.Start(new(Plugin))
+	return "", nil
 }
