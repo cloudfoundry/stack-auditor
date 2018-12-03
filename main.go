@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/cli/plugin"
+	"code.cloudfoundry.org/cli/plugin/models"
 )
 
 type Plugin struct{}
@@ -90,21 +92,66 @@ func (c *Plugin) GetMetadata() plugin.PluginMetadata {
 	}
 }
 
+type GuidName map[string]string
+
 func Audit(cliConnection plugin.CliConnection) (string, error) {
-	appJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/apps")
-	orgs, _ := cliConnection.GetOrgs()
+	orgs, err := cliConnection.GetOrgs()
+	if err != nil {
+		return "", err
+	}
+
+	orgMap := makeOrgMap(orgs)
+	fmt.Println("orgMap: ", orgMap)
+
 	spaceJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/spaces")
 	stackJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/stacks")
+	appJSON, _ := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/apps")
 
-	fmt.Printf("%v \n\n", appJSON)
+	fmt.Printf("%v \n\n", appJSON[0])
 	fmt.Println("-------------------------------------------------")
-	fmt.Printf("%v \n\n", orgs)
+	fmt.Printf("%v \n\n", spaceJSON[0])
 	fmt.Println("-------------------------------------------------")
-	fmt.Printf("%v \n\n", orgs)
+	fmt.Printf("%v \n\n", stackJSON[0])
 	fmt.Println("-------------------------------------------------")
-	fmt.Printf("%v \n\n", spaceJSON)
-	fmt.Println("-------------------------------------------------")
-	fmt.Printf("%v \n\n", stackJSON)
+	fmt.Printf("%d \n\n", len(spaceJSON))
+
+	var g GuidName
+
+	if err := json.Unmarshal([]byte(spaceJSON[0]), &g); err != nil {
+		log.Fatal(err)
+	}
 
 	return "", nil
+}
+
+func makeOrgMap(orgs []plugin_models.GetOrgs_Model) map[string]string {
+	m := make(map[string]string)
+
+	for _, org := range orgs {
+		m[org.Guid] = org.Name
+	}
+	return m
+}
+
+func (g *GuidName) UnmarshalJSON(b []byte) error {
+	// if it is a space...
+	return g.spaceUnmarshal(b)
+}
+
+func (g GuidName) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string(g))
+}
+
+func (g *GuidName) spaceUnmarshal(b []byte) error {
+	var i map[string]interface{}
+	keys := make([]string, 0, len(i))
+	if err := json.Unmarshal(b, &i); err != nil {
+		return err
+	}
+	for k := range i {
+		keys = append(keys, k)
+	}
+
+	fmt.Println("Key: ", keys)
+	return nil
 }
