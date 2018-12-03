@@ -115,11 +115,23 @@ func Audit(cliConnection plugin.CliConnection) (string, error) {
 	fmt.Println("-------------------------------------------------")
 	fmt.Printf("%d \n\n", len(spaceJSON))
 
-	var g GuidName
+	var spaces Spaces
+	var stacks Stacks
+	var apps Apps
 
-	if err := json.Unmarshal([]byte(spaceJSON[0]), &g); err != nil {
-		log.Fatal(err)
+	if err := json.Unmarshal([]byte(spaceJSON[0]), &spaces); err != nil {
+		return "", err
 	}
+	if err := json.Unmarshal([]byte(stackJSON[0]), &stacks); err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal([]byte(appJSON[0]), &apps); err != nil {
+		return "", err
+	}
+
+	fmt.Println("Unmarshal Spaces: ", spaces)
+	fmt.Println("Unmarshal Stacks: ", stacks)
+	fmt.Println("Unmarshal Apps: ", apps)
 
 	return "", nil
 }
@@ -133,25 +145,112 @@ func makeOrgMap(orgs []plugin_models.GetOrgs_Model) map[string]string {
 	return m
 }
 
-func (g *GuidName) UnmarshalJSON(b []byte) error {
-	// if it is a space...
-	return g.spaceUnmarshal(b)
+type Spaces struct {
+	TotalResults int         `json:"total_results"`
+	TotalPages   int         `json:"total_pages"`
+	PrevURL      interface{} `json:"prev_url"`
+	NextURL      interface{} `json:"next_url"`
+	Resources    []struct {
+		Metadata struct {
+			GUID      string    `json:"guid"`
+			URL       string    `json:"url"`
+			CreatedAt time.Time `json:"created_at"`
+			UpdatedAt time.Time `json:"updated_at"`
+		} `json:"metadata"`
+		Entity struct {
+			Name                     string      `json:"name"`
+			OrganizationGUID         string      `json:"organization_guid"`
+			SpaceQuotaDefinitionGUID interface{} `json:"space_quota_definition_guid"`
+			IsolationSegmentGUID     interface{} `json:"isolation_segment_guid"`
+			AllowSSH                 bool        `json:"allow_ssh"`
+			OrganizationURL          string      `json:"organization_url"`
+			DevelopersURL            string      `json:"developers_url"`
+			ManagersURL              string      `json:"managers_url"`
+			AuditorsURL              string      `json:"auditors_url"`
+			AppsURL                  string      `json:"apps_url"`
+			RoutesURL                string      `json:"routes_url"`
+			DomainsURL               string      `json:"domains_url"`
+			ServiceInstancesURL      string      `json:"service_instances_url"`
+			AppEventsURL             string      `json:"app_events_url"`
+			EventsURL                string      `json:"events_url"`
+			SecurityGroupsURL        string      `json:"security_groups_url"`
+			StagingSecurityGroupsURL string      `json:"staging_security_groups_url"`
+		} `json:"entity"`
+	} `json:"resources"`
 }
 
-func (g GuidName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string(g))
+type Stacks struct {
+	TotalResults int         `json:"total_results"`
+	TotalPages   int         `json:"total_pages"`
+	PrevURL      interface{} `json:"prev_url"`
+	NextURL      interface{} `json:"next_url"`
+	Resources    []struct {
+		Metadata struct {
+			GUID      string    `json:"guid"`
+			URL       string    `json:"url"`
+			CreatedAt time.Time `json:"created_at"`
+			UpdatedAt time.Time `json:"updated_at"`
+		} `json:"metadata"`
+		Entity struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		} `json:"entity"`
+	} `json:"resources"`
 }
 
-func (g *GuidName) spaceUnmarshal(b []byte) error {
-	var i map[string]interface{}
-	keys := make([]string, 0, len(i))
-	if err := json.Unmarshal(b, &i); err != nil {
-		return err
-	}
-	for k := range i {
-		keys = append(keys, k)
-	}
-
-	fmt.Println("Key: ", keys)
-	return nil
+type Apps struct {
+	TotalResults int         `json:"total_results"`
+	TotalPages   int         `json:"total_pages"`
+	PrevURL      interface{} `json:"prev_url"`
+	NextURL      interface{} `json:"next_url"`
+	Resources    []struct {
+		Metadata struct {
+			GUID      string    `json:"guid"`
+			URL       string    `json:"url"`
+			CreatedAt time.Time `json:"created_at"`
+			UpdatedAt time.Time `json:"updated_at"`
+		} `json:"metadata"`
+		Entity struct {
+			Name                  string `json:"name"`
+			Production            bool   `json:"production"`
+			SpaceGUID             string `json:"space_guid"`
+			StackGUID             string `json:"stack_guid"`
+			Buildpack             string `json:"buildpack"`
+			DetectedBuildpack     string `json:"detected_buildpack"`
+			DetectedBuildpackGUID string `json:"detected_buildpack_guid"`
+			EnvironmentJSON       struct {
+			} `json:"environment_json"`
+			Memory                   int         `json:"memory"`
+			Instances                int         `json:"instances"`
+			DiskQuota                int         `json:"disk_quota"`
+			State                    string      `json:"state"`
+			Version                  string      `json:"version"`
+			Command                  interface{} `json:"command"`
+			Console                  bool        `json:"console"`
+			Debug                    interface{} `json:"debug"`
+			StagingTaskID            string      `json:"staging_task_id"`
+			PackageState             string      `json:"package_state"`
+			HealthCheckType          string      `json:"health_check_type"`
+			HealthCheckTimeout       interface{} `json:"health_check_timeout"`
+			HealthCheckHTTPEndpoint  string      `json:"health_check_http_endpoint"`
+			StagingFailedReason      interface{} `json:"staging_failed_reason"`
+			StagingFailedDescription interface{} `json:"staging_failed_description"`
+			Diego                    bool        `json:"diego"`
+			DockerImage              interface{} `json:"docker_image"`
+			DockerCredentials        struct {
+				Username interface{} `json:"username"`
+				Password interface{} `json:"password"`
+			} `json:"docker_credentials"`
+			PackageUpdatedAt     time.Time `json:"package_updated_at"`
+			DetectedStartCommand string    `json:"detected_start_command"`
+			EnableSSH            bool      `json:"enable_ssh"`
+			Ports                []int     `json:"ports"`
+			SpaceURL             string    `json:"space_url"`
+			StackURL             string    `json:"stack_url"`
+			RoutesURL            string    `json:"routes_url"`
+			EventsURL            string    `json:"events_url"`
+			ServiceBindingsURL   string    `json:"service_bindings_url"`
+			RouteMappingsURL     string    `json:"route_mappings_url"`
+		} `json:"entity"`
+	} `json:"resources"`
 }
