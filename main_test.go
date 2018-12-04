@@ -7,16 +7,21 @@ import (
 
 	"code.cloudfoundry.org/cli/plugin/models"
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/gomega"
 )
 
 func TestRun(t *testing.T) {
+	RegisterTestingT(t)
 	t.Run("Runs with args", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
 
-		apps, _ := fileToString("apps.json")
-		spaces, _ := fileToString("spaces.json")
-		stacks, _ := fileToString("stacks.json")
+		apps, err := fileToString("apps.json")
+		Expect(err).ToNot(HaveOccurred())
+		spaces, err := fileToString("spaces.json")
+		Expect(err).ToNot(HaveOccurred())
+		stacks, err := fileToString("stacks.json")
+		Expect(err).ToNot(HaveOccurred())
 
 		mockConnection := NewMockCliConnection(mockCtrl)
 		mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps").Return(
@@ -48,14 +53,10 @@ func TestRun(t *testing.T) {
 			}, nil)
 
 		result, err := Audit(mockConnection)
-		if err != nil {
-			t.Error(err)
-		}
+		Expect(err).NotTo(HaveOccurred())
 
 		expectedResult := "orgA/spaceA/appA stackA\norgB/spaceB/appB stackB\n"
-		if result != expectedResult {
-			t.Errorf("Expected '%s' to match '%s'", result, expectedResult)
-		}
+		Expect(result).To(Equal(expectedResult))
 	})
 }
 

@@ -63,9 +63,9 @@
         "updated_at": "2018-11-28T15:49:17Z"
       },
       "entity": {
-        "name": "fake_supply_nodejs_app-nfimnvwfhrtibyfpzrue",
+        "name": "appB",
         "production": false,
-        "space_guid": "spaceAGuid",
+        "space_guid": "spaceBGuid",
         "stack_guid": "stackBGuid",
         "buildpack": "https://github.com/cloudfoundry/dotnet-core-buildpack#develop",
         "detected_buildpack": null,
@@ -98,7 +98,7 @@
         "ports": [
           8080
         ],
-        "space_url": "/v2/spaces/spaceAGuid",
+        "space_url": "/v2/spaces/spaceBGuid",
         "stack_url": "/v2/stacks/stackBGuid",
         "routes_url": "/v2/apps/appBGuid/routes",
         "events_url": "/v2/apps/appBGuid/events",
