@@ -3,10 +3,10 @@ package structsJSON
 import "time"
 
 type Apps struct {
-	TotalResults int         `json:"total_results"`
-	TotalPages   int         `json:"total_pages"`
-	PrevURL      interface{} `json:"prev_url"`
-	NextURL      interface{} `json:"next_url"`
+	TotalResults int    `json:"total_results"`
+	TotalPages   int    `json:"total_pages"`
+	PrevURL      string `json:"prev_url"`
+	NextURL      string `json:"next_url"`
 	Resources    []struct {
 		Metadata struct {
 			GUID      string    `json:"guid"`

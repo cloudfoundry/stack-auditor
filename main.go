@@ -90,46 +90,57 @@ func Audit(cliConnection plugin.CliConnection) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	appJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/apps")
-	if err != nil {
-		return "", err
+
+	var allApps []structsJSON.Apps
+	nextURL := "/v2/apps"
+	for nextURL != "" {
+		appJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", nextURL)
+		if err != nil {
+			return "", err
+		}
+
+		var apps structsJSON.Apps
+
+		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
+			return "", fmt.Errorf("error unmarshaling apps json: %v", err)
+		}
+		nextURL = apps.NextURL
+		allApps = append(allApps, apps)
 	}
 
 	var spaces structsJSON.Spaces
 	var stacks structsJSON.Stacks
-	var apps structsJSON.Apps
-
 	if err := json.Unmarshal([]byte(strings.Join(spaceJSON, "")), &spaces); err != nil {
 		return "", fmt.Errorf("error unmarshaling spaces json: %v", err)
 	}
 	if err := json.Unmarshal([]byte(strings.Join(stackJSON, "")), &stacks); err != nil {
 		return "", fmt.Errorf("error unmarshaling stacks json: %v", err)
 	}
-	if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
-		return "", fmt.Errorf("error unmarshaling apps json: %v", err)
-	}
 
 	spaceMap := spaces.MakeSpaceNameMap()
 	spaceOrgMap := spaces.MakeSpaceOrgMap()
 	stackMap := stacks.MakeStackMap()
 
-	list := assembleData(orgMap, spaceMap, spaceOrgMap, stackMap, apps)
+	list := assembleData(orgMap, spaceMap, spaceOrgMap, stackMap, allApps)
 
 	sort.Strings(list)
 
 	return strings.Join(list, "\n") + "\n", nil
 }
 
-func assembleData(orgMap, spaceMap, spaceOrgMap, stackMap map[string]string, apps structsJSON.Apps) []string {
+func assembleData(orgMap, spaceMap, spaceOrgMap, stackMap map[string]string, allApps []structsJSON.Apps) []string {
 	var entries []string
-	for _, app := range apps.Resources {
-		name := app.Entity.Name
-		spaceGUID := app.Entity.SpaceGUID
-		stackGUID := app.Entity.StackGUID
-		orgName := orgMap[spaceOrgMap[spaceGUID]]
-		spaceName := spaceMap[spaceGUID]
-		stackName := stackMap[stackGUID]
-		entries = append(entries, fmt.Sprintf("%s/%s/%s %s", orgName, spaceName, name, stackName))
+
+	for _, apps := range allApps {
+		for _, app := range apps.Resources {
+			name := app.Entity.Name
+			spaceGUID := app.Entity.SpaceGUID
+			stackGUID := app.Entity.StackGUID
+			orgName := orgMap[spaceOrgMap[spaceGUID]]
+			spaceName := spaceMap[spaceGUID]
+			stackName := stackMap[stackGUID]
+			entries = append(entries, fmt.Sprintf("%s/%s/%s %s", orgName, spaceName, name, stackName))
+		}
 	}
 	return entries
 }
