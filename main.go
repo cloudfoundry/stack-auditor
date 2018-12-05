@@ -9,11 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"code.cloudfoundry.org/cli/plugin/models"
-
-	"github.com/cloudfoundry/stack-auditor/structsJSON"
-
 	"code.cloudfoundry.org/cli/plugin"
+	"code.cloudfoundry.org/cli/plugin/models"
+	"github.com/cloudfoundry/stack-auditor/structsJSON"
 )
 
 type Plugin struct{}
@@ -80,76 +78,55 @@ func Audit(cliConnection plugin.CliConnection) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	orgMap := makeOrgMap(orgs)
-	spaceJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/spaces")
+
+	spaceNameMap, spaceOrgMap, err := makeSpaceNameAndOrgMap(cliConnection)
 	if err != nil {
 		return "", err
 	}
-	stackJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", "/v2/stacks")
+
+	stackMap, err := makeStackMap(cliConnection)
 	if err != nil {
 		return "", err
 	}
 
-	var allApps []structsJSON.Apps
-	nextURL := "/v2/apps"
-	for nextURL != "" {
-		appJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", nextURL)
-		if err != nil {
-			return "", err
-		}
-
-		var apps structsJSON.Apps
-
-		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
-			return "", fmt.Errorf("error unmarshaling apps json: %v", err)
-		}
-		nextURL = apps.NextURL
-		allApps = append(allApps, apps)
+	allApps, err := getAllApps(cliConnection)
+	if err != nil {
+		return "", err
 	}
 
-	var spaces structsJSON.Spaces
-	var stacks structsJSON.Stacks
-	if err := json.Unmarshal([]byte(strings.Join(spaceJSON, "")), &spaces); err != nil {
-		return "", fmt.Errorf("error unmarshaling spaces json: %v", err)
-	}
-	if err := json.Unmarshal([]byte(strings.Join(stackJSON, "")), &stacks); err != nil {
-		return "", fmt.Errorf("error unmarshaling stacks json: %v", err)
-	}
-
-	spaceMap := spaces.MakeSpaceNameMap()
-	spaceOrgMap := spaces.MakeSpaceOrgMap()
-	stackMap := stacks.MakeStackMap()
-
-	list := assembleData(orgMap, spaceMap, spaceOrgMap, stackMap, allApps)
-
+	list := assembleEntries(orgMap, spaceNameMap, spaceOrgMap, stackMap, allApps)
 	sort.Strings(list)
 
 	return strings.Join(list, "\n") + "\n", nil
 }
 
-func assembleData(orgMap, spaceMap, spaceOrgMap, stackMap map[string]string, allApps []structsJSON.Apps) []string {
-	var entries []string
+func makeSpaceNameAndOrgMap(cliConnection plugin.CliConnection) (map[string]string, map[string]string, error) {
+	var allSpaces []structsJSON.Spaces
+	nextSpaceURL := "/v2/spaces"
+	for nextSpaceURL != "" {
+		spacesJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", nextSpaceURL)
+		if err != nil {
+			return nil, nil, err
+		}
 
-	for _, apps := range allApps {
-		for _, app := range apps.Resources {
-			name := app.Entity.Name
-			spaceGUID := app.Entity.SpaceGUID
-			stackGUID := app.Entity.StackGUID
-			orgName := orgMap[spaceOrgMap[spaceGUID]]
-			spaceName := spaceMap[spaceGUID]
-			stackName := stackMap[stackGUID]
-			entries = append(entries, fmt.Sprintf("%s/%s/%s %s", orgName, spaceName, name, stackName))
+		var spaces structsJSON.Spaces
+		if err := json.Unmarshal([]byte(strings.Join(spacesJSON, "")), &spaces); err != nil {
+			return nil, nil, fmt.Errorf("error unmarshaling spaces json: %v", err)
+		}
+		nextSpaceURL = spaces.NextURL
+		allSpaces = append(allSpaces, spaces)
+	}
+
+	spaceOrgMap := make(map[string]string)
+	spaceNameMap := make(map[string]string)
+	for _, spaces := range allSpaces {
+		for _, space := range spaces.Resources {
+			spaceNameMap[space.Metadata.GUID] = space.Entity.Name
+			spaceOrgMap[space.Metadata.GUID] = space.Entity.OrganizationGUID
 		}
 	}
-	return entries
-}
-
-func unmarshalToObj(JSON []string, receiver *interface{}) error {
-	if err := json.Unmarshal([]byte(strings.Join(JSON, "")), receiver); err != nil {
-		return fmt.Errorf("error unmarshaling spaces json: %v", err)
-	}
-	return nil
+	return spaceNameMap, spaceOrgMap, nil
 }
 
 func makeOrgMap(orgs []plugin_models.GetOrgs_Model) map[string]string {
@@ -159,4 +136,66 @@ func makeOrgMap(orgs []plugin_models.GetOrgs_Model) map[string]string {
 		m[org.Guid] = org.Name
 	}
 	return m
+}
+
+func makeStackMap(cliConnection plugin.CliConnection) (map[string]string, error) {
+	var allStacks []structsJSON.Stacks
+	nextStackURL := "/v2/stacks"
+	for nextStackURL != "" {
+		stacksJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", nextStackURL)
+		if err != nil {
+			return nil, err
+		}
+
+		var stacks structsJSON.Stacks
+		if err := json.Unmarshal([]byte(strings.Join(stacksJSON, "")), &stacks); err != nil {
+			return nil, fmt.Errorf("error unmarshaling stacks json: %v", err)
+		}
+		nextStackURL = stacks.NextURL
+		allStacks = append(allStacks, stacks)
+	}
+
+	stackMap := make(map[string]string)
+	for _, stacks := range allStacks {
+		for _, stack := range stacks.Resources {
+			stackMap[stack.Metadata.GUID] = stack.Entity.Name
+		}
+	}
+	return stackMap, nil
+}
+
+func getAllApps(cliConnection plugin.CliConnection) ([]structsJSON.Apps, error) {
+	var allApps []structsJSON.Apps
+	nextURL := "/v2/apps"
+	for nextURL != "" {
+		appJSON, err := cliConnection.CliCommandWithoutTerminalOutput("curl", nextURL)
+		if err != nil {
+			return nil, err
+		}
+
+		var apps structsJSON.Apps
+
+		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
+			return nil, fmt.Errorf("error unmarshaling apps json: %v", err)
+		}
+		nextURL = apps.NextURL
+		allApps = append(allApps, apps)
+	}
+	return allApps, nil
+}
+
+func assembleEntries(orgMap, spaceMap, spaceOrgMap, stackMap map[string]string, allApps []structsJSON.Apps) []string {
+	var entries []string
+
+	for _, apps := range allApps {
+		for _, app := range apps.Resources {
+			appName := app.Entity.Name
+			spaceName := spaceMap[app.Entity.SpaceGUID]
+			stackName := stackMap[app.Entity.StackGUID]
+
+			orgName := orgMap[spaceOrgMap[app.Entity.SpaceGUID]]
+			entries = append(entries, fmt.Sprintf("%s/%s/%s %s", orgName, spaceName, appName, stackName))
+		}
+	}
+	return entries
 }

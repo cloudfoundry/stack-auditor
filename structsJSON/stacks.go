@@ -1,22 +1,17 @@
 package structsJSON
 
-import "time"
-
 type Stacks struct {
-	TotalResults int         `json:"total_results"`
-	TotalPages   int         `json:"total_pages"`
-	PrevURL      interface{} `json:"prev_url"`
-	NextURL      interface{} `json:"next_url"`
+	TotalResults int    `json:"total_results"`
+	TotalPages   int    `json:"total_pages"`
+	PrevURL      string `json:"prev_url"`
+	NextURL      string `json:"next_url"`
 	Resources    []struct {
 		Metadata struct {
-			GUID      string    `json:"guid"`
-			URL       string    `json:"url"`
-			CreatedAt time.Time `json:"created_at"`
-			UpdatedAt time.Time `json:"updated_at"`
+			GUID string `json:"guid"`
+			URL  string `json:"url"`
 		} `json:"metadata"`
 		Entity struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
+			Name string `json:"name"`
 		} `json:"entity"`
 	} `json:"resources"`
 }
