@@ -61,7 +61,7 @@ func TestRun(t *testing.T) {
 }
 
 func fileToString(fileName string) (string, error) {
-	path, err := filepath.Abs(filepath.Join("resources", fileName))
+	path, err := filepath.Abs(filepath.Join("fixtures", fileName))
 	if err != nil {
 		return "", err
 	}

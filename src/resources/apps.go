@@ -1,6 +1,6 @@
-package structsJSON
+package resources
 
-type Spaces struct {
+type AppsJSON struct {
 	TotalResults int    `json:"total_results"`
 	TotalPages   int    `json:"total_pages"`
 	PrevURL      string `json:"prev_url"`
@@ -11,8 +11,11 @@ type Spaces struct {
 			URL  string `json:"url"`
 		} `json:"metadata"`
 		Entity struct {
-			Name             string `json:"name"`
-			OrganizationGUID string `json:"organization_guid"`
+			Name      string `json:"name"`
+			SpaceGUID string `json:"space_guid"`
+			StackGUID string `json:"stack_guid"`
 		} `json:"entity"`
 	} `json:"resources"`
 }
+
+type Apps []AppsJSON
