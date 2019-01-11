@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/cli/plugin"
-	"github.com/cloudfoundry/stack-auditor/src/audit"
-	"github.com/cloudfoundry/stack-auditor/src/resources"
+	"github.com/cloudfoundry/stack-auditor/audit"
+	"github.com/cloudfoundry/stack-auditor/resources"
 )
 
 type StackAuditor struct{}
