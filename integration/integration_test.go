@@ -79,6 +79,9 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			for i := 0; i < appCount; i++ {
 				apps[i] = cutlass.New(filepath.Join("testdata", "simple_app"))
 				apps[i].Stack = stacks[i%len(stacks)]
+				apps[i].Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				apps[i].Memory = "128M"
+				apps[i].Disk = "128M"
 
 				go func(i int) {
 					defer wg.Done()
@@ -92,6 +95,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			for _, app := range apps {
 				app.Destroy()
 			}
+			cmd := exec.Command("cf", "delete-orphaned-routes", "-f")
+			cmd.Run()
 		})
 
 		it("prints all apps with their orgs spaces and stacks", func() {
