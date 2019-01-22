@@ -86,18 +86,18 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 		Commands: []plugin.Command{
 			{
 				Name:     AuditStackCmd,
-				HelpText: "Audit stack command's help text",
+				HelpText: "List all apps with their stacks, orgs, and spaces",
 
 				UsageDetails: plugin.Usage{
-					Usage: AuditStackCmd + "\n   cf audit-stack",
+					Usage: fmt.Sprintf("cf %s", AuditStackCmd),
 				},
 			},
 			{
 				Name:     ChangeStackCmd,
-				HelpText: "Change stack command's help text",
+				HelpText: "Change an app's stack in the current space and restart the app",
 
 				UsageDetails: plugin.Usage{
-					Usage: ChangeStackCmd + "\n   cf change-stack /org/space/app stack",
+					Usage: fmt.Sprintf("cf %s APP_NAME STACK_NAME", ChangeStackCmd),
 				},
 			},
 		},
