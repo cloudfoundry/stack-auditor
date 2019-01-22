@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-workDir=~/workspace/stack-auditor
+set -euo pipefail
 
-$workDir/scripts/build.sh
-cf install-plugin $workDir/build/stack-auditor.darwin -f
+cd "$( dirname "${BASH_SOURCE[0]}" )/.."
+
+scripts/build.sh
+cf install-plugin build/stack-auditor.darwin -f

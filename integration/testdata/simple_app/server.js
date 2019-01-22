@@ -2,10 +2,10 @@ const http = require('http')
 const port = process.env.PORT || 8080
 
 const requestHandler = (request, response) => {
-    response.end(`NodeOptions: ${process.env.NODE_OPTIONS}`)
+    return response.end(`STACK: ${process.env.CF_STACK}`)
 }
 
-const server = http.createServer(requestHandler)
+const server = http.createServer(requestHandler);
 
 server.listen(port, (err) => {
     if (err) {

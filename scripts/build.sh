@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
-mkdir -p ../build
+set -euo pipefail
 
-go build -ldflags="-s -w" -o build/stack-auditor.darwin github.com/cloudfoundry/stack-auditor
+cd "$( dirname "${BASH_SOURCE[0]}" )/.."
+
+mkdir -p build
+
+GOOS=darwin go build -ldflags="-s -w" -o build/stack-auditor.darwin github.com/cloudfoundry/stack-auditor
 GOOS=linux go build -ldflags="-s -w" -o build/stack-auditor.linux github.com/cloudfoundry/stack-auditor
 GOOS=windows go build -ldflags="-s -w" -o build/stack-auditor.exe github.com/cloudfoundry/stack-auditor
