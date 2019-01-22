@@ -37,6 +37,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 		it.Before(func() {
 			app = cutlass.New(filepath.Join("testdata", "simple_app"))
+			app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 			app.Stack = oldStack
 		})
 
