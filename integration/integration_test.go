@@ -25,11 +25,14 @@ const (
 )
 
 func TestIntegrationStackAuditor(t *testing.T) {
-	RegisterTestingT(t)
 	spec.Run(t, "Integration", testIntegration, spec.Report(report.Terminal{}))
 }
 
 func testIntegration(t *testing.T, when spec.G, it spec.S) {
+	it.Before(func() {
+		RegisterTestingT(t)
+	})
+
 	when("Change Stack", func() {
 		var (
 			app *cutlass.App

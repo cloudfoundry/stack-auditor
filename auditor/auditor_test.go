@@ -22,7 +22,6 @@ const (
 )
 
 func TestUnitAuditor(t *testing.T) {
-	RegisterTestingT(t)
 	spec.Run(t, "Audit", testAudit, spec.Report(report.Terminal{}))
 }
 
@@ -35,6 +34,7 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
+		RegisterTestingT(t)
 		mockCtrl = gomock.NewController(t)
 
 		mockConnection = mocks.SetupMockCliConnection(mockCtrl)

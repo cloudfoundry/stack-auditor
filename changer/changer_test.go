@@ -26,7 +26,6 @@ const (
 )
 
 func TestUnitChanger(t *testing.T) {
-	RegisterTestingT(t)
 	spec.Run(t, "Changer", testChanger, spec.Report(report.Terminal{}))
 }
 
@@ -39,6 +38,8 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 	)
 
 	it.Before(func() {
+		RegisterTestingT(t)
+
 		mockCtrl = gomock.NewController(t)
 		mockConnection = mocks.SetupMockCliConnection(mockCtrl)
 
