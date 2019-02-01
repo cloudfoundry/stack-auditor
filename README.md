@@ -1,7 +1,20 @@
 # Stack Auditor
 
+## Compiling
+
+Prerequisite: Have a working golang environment with correctly set
+`GOPATH`.
+
+```sh
+go get go get github.com/cloudfoundry/stack-auditor
+cd $GOPATH/src/go get github.com/cloudfoundry/stack-auditor
+./scripts/build.sh
+
+```
+
 ## Usage
-Install the plugin with `cf install-plugin <path_to_binary>` or use the shell scripts `/scripts/install.sh` or `/scripts/reinstall.sh`.
+
+Install the plugin with `cf install-plugin <path_to_binary>` or use the shell scripts `./scripts/install.sh` or `./scripts/reinstall.sh`.
 Audit cf applications using `cf audit-stack` and change stack association using `cf change-stack <org/space/app> <stack>`.
 
 ## Run the Tests
