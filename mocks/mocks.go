@@ -38,8 +38,8 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	mockConnection.EXPECT().GetOrgs().Return(
 		[]plugin_models.GetOrgs_Model{
 			plugin_models.GetOrgs_Model{
-				Guid: "orgAGuid",
-				Name: "orgA",
+				Guid: "commonOrgGuid",
+				Name: "commonOrg",
 			},
 
 			plugin_models.GetOrgs_Model{
@@ -48,7 +48,7 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 			},
 		}, nil).AnyTimes()
 
-	SetCurrentOrgAndSpace(mockConnection, "orgA", "spaceA")
+	SetCurrentOrgAndSpace(mockConnection, "commonOrg", "commonSpace")
 
 	return mockConnection
 }

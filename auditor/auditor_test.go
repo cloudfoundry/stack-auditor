@@ -15,8 +15,8 @@ import (
 const (
 	AppAName   = "appA"
 	AppBName   = "appB"
-	AppAPath   = "orgA/spaceA/" + AppAName
-	AppBPath   = "orgB/spaceB/" + AppBName
+	AppAPath   = "commonOrg/commonSpace/" + AppAName
+	AppBPath   = "commonOrg/commonSpace/" + AppBName
 	StackAName = "stackA"
 	StackBName = "stackB"
 )
