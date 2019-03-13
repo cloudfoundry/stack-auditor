@@ -1,7 +1,7 @@
 # Stack Auditor
 
 ## Usage
-Install the plugin with `cf install-plugin <path_to_binary>` or use the shell scripts `/scripts/install.sh` or `/scripts/reinstall.sh`.
+Download the latest binary for your operating system from the [release section](https://github.com/cloudfoundry/stack-auditor/releases) of this repository. Install the plugin with `cf install-plugin <path_to_binary>`.
 
 Audit cf applications using `cf audit-stack` and change stack association using `cf change-stack <app> <stack>`.
 
