@@ -51,7 +51,7 @@ func testDeleter(t *testing.T, when spec.G, it spec.S) {
 
 	when("deleting a stack that no apps are using", func() {
 		it("deletes the stack", func() {
-			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v3/stacks/"+StackAGuid, "-X", "DELETE").Return([]string{}, nil)
+			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/stacks/"+StackAGuid, "-X", "DELETE").Return([]string{}, nil)
 			result, err := d.DeleteStack(StackAName)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(ContainSubstring(fmt.Sprintf("Stack %s has been deleted", StackAName)))
