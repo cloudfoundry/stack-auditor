@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/cloudfoundry/stack-auditor/deleter"
 	"log"
 	"os"
 
@@ -19,6 +20,7 @@ type StackAuditor struct{}
 const (
 	AuditStackCmd  = "audit-stack"
 	ChangeStackCmd = "change-stack"
+	DeleteStackCmd = "delete-stack"
 )
 
 func main() {
@@ -40,6 +42,18 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 			},
 		}
 		info, err := a.Audit()
+		if err != nil {
+			log.Fatalf("error talking to cf: %v\n", err)
+		}
+		fmt.Println(info)
+
+	case DeleteStackCmd:
+		a := deleter.Deleter{
+			CF: cf.CF{
+				Conn: cliConnection,
+			},
+		}
+		info, err := a.DeleteStack(args[1])
 		if err != nil {
 			log.Fatalf("error talking to cf: %v\n", err)
 		}
@@ -90,6 +104,14 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 
 				UsageDetails: plugin.Usage{
 					Usage: fmt.Sprintf("cf %s", AuditStackCmd),
+				},
+			},
+			{
+				Name:     DeleteStackCmd,
+				HelpText: "Delete a stack from the foundation",
+
+				UsageDetails: plugin.Usage{
+					Usage: fmt.Sprintf("cf %s STACK_NAME", DeleteStackCmd),
 				},
 			},
 			{
