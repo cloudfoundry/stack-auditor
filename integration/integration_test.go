@@ -127,7 +127,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		})
 
 		it("should delete the stack", func() {
-			cmd := exec.Command("cf", "delete-stack", oldStack)
+			cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
 			output, err := cmd.CombinedOutput()
 			Expect(err).NotTo(HaveOccurred(), string(output))
 			Expect(string(output)).To(ContainSubstring(fmt.Sprintf("%s has been deleted", oldStack)))
@@ -153,7 +153,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 			it("fails to delete the stack", func() {
 				PushAppAndConfirm(app)
-				cmd := exec.Command("cf", "delete-stack", oldStack)
+				cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred())
 				Expect(string(out)).To(ContainSubstring("Failed to delete stack cflinuxfs2"))

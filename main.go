@@ -6,7 +6,7 @@ import (
 	"github.com/cloudfoundry/stack-auditor/deleter"
 	"log"
 	"os"
-
+	"github.com/cloudfoundry/stack-auditor/TerminalUI"
 	"github.com/cloudfoundry/stack-auditor/cf"
 	"github.com/cloudfoundry/stack-auditor/changer"
 
@@ -15,7 +15,9 @@ import (
 	"code.cloudfoundry.org/cli/plugin"
 )
 
-type StackAuditor struct{}
+type StackAuditor struct{
+	UI TerminalUI.UIController
+}
 
 const (
 	AuditStackCmd  = "audit-stack"
@@ -23,8 +25,12 @@ const (
 	DeleteStackCmd = "delete-stack"
 )
 
+
 func main() {
-	plugin.Start(new(StackAuditor))
+	stackAuditor := StackAuditor{
+		UI: TerminalUI.NewUi(),
+	}
+	plugin.Start(&stackAuditor)
 }
 
 func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
@@ -48,6 +54,13 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		fmt.Println(info)
 
 	case DeleteStackCmd:
+
+		forceFlag := len(args) > 2 && (args[2] == "--force" || args[2] == "-f")
+
+		if !forceFlag && !s.UI.ConfirmDelete(args[1]){
+			os.Exit(1)
+		}
+
 		a := deleter.Deleter{
 			CF: cf.CF{
 				Conn: cliConnection,
