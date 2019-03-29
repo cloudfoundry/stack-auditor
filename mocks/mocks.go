@@ -18,6 +18,8 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	Expect(err).ToNot(HaveOccurred())
 	stacks, err := fileToString("stacks.json")
 	Expect(err).ToNot(HaveOccurred())
+	buildpacks, err := fileToString("buildpacks.json")
+	Expect(err).ToNot(HaveOccurred())
 
 	mockConnection := NewMockCliConnection(mockCtrl)
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps").Return(
@@ -33,6 +35,10 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/stacks").Return(
 		[]string{
 			stacks,
+		}, nil).AnyTimes()
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/buildpacks").Return(
+		[]string{
+			buildpacks,
 		}, nil).AnyTimes()
 
 	mockConnection.EXPECT().GetOrgs().Return(

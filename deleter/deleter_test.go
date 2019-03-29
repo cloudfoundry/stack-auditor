@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	StackAName   = "stackA"
-	StackAGuid   = "stackAGuid"
+	StackEName   = "stackE"
+	StackEGuid   = "stackEGuid"
+	StackCName   = "stackC"
 	InvalidStack = "notarealstack"
 )
 
@@ -51,11 +52,10 @@ func testDeleter(t *testing.T, when spec.G, it spec.S) {
 
 	when("deleting a stack that no apps are using", func() {
 		it("deletes the stack", func() {
-
-			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/stacks/"+StackAGuid, "-X", "DELETE").Return([]string{}, nil)
-			result, err := d.DeleteStack(StackAName)
+			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/stacks/"+StackEGuid, "-X", "DELETE").Return([]string{}, nil)
+			result, err := d.DeleteStack(StackEName)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(ContainSubstring(fmt.Sprintf("Stack %s has been deleted", StackAName)))
+			Expect(result).To(ContainSubstring(fmt.Sprintf("Stack %s has been deleted", StackEName)))
 		})
 	})
 
@@ -63,6 +63,13 @@ func testDeleter(t *testing.T, when spec.G, it spec.S) {
 		it("should tell the user the stack is invalid", func() {
 			_, err := d.DeleteStack(InvalidStack)
 			Expect(err).To(MatchError(fmt.Sprintf("%s is not a valid stack", InvalidStack)))
+		})
+	})
+
+	when("deleting a stack that has buildpacks associated with it", func() {
+		it("should tell the user to the delete the buildpack first", func() {
+			_, err := d.DeleteStack(StackCName)
+			Expect(err).To(MatchError(fmt.Sprintf(deleter.DeleteStackBuildpackErr, StackCName)))
 		})
 	})
 }

@@ -3,17 +3,30 @@ package deleter
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cloudfoundry/stack-auditor/cf"
 	"strings"
+
+	"github.com/cloudfoundry/stack-auditor/cf"
 )
 
-const DeleteStackSuccessMsg = "Stack %s has been deleted"
+const (
+	DeleteStackSuccessMsg   = "Stack %s has been deleted"
+	DeleteStackBuildpackErr = "you still have buildpacks associated to %s. Please use the `cf delete-buildpack` command to remove associated buildpacks and try again"
+	DeleteStackAppErr       = "failed to delete stack %s. You still have apps associated to this stack. Migrate those first."
+)
 
 type Deleter struct {
 	CF cf.CF
 }
 
 func (d *Deleter) DeleteStack(stackName string) (string, error) {
+	if err := d.hasAppAssociation(stackName); err != nil {
+		return "", err
+	}
+
+	if err := d.hasBuildpackAssociation(stackName); err != nil {
+		return "", err
+	}
+
 	stackGuid, err := d.CF.GetStackGUID(stackName)
 	if err != nil {
 		return "", err
@@ -33,14 +46,51 @@ func (d *Deleter) DeleteStack(stackName string) (string, error) {
 	return result, nil
 }
 
-func checkCurlDelete(out, stackName string) error {
+func (d *Deleter) hasBuildpackAssociation(stackName string) error {
+	buildpackMetas, err := d.CF.GetAllBuildpacks()
+	if err != nil {
+		return err
+	}
 
-	out = strings.Trim(out," \n")
+	for _, buildpackMeta := range buildpackMetas {
+		for _, buildpack := range buildpackMeta.BuildPacks {
+			if buildpack.Entity.Stack == stackName {
+				return fmt.Errorf(DeleteStackBuildpackErr, stackName)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (d *Deleter) hasAppAssociation(stackName string) error {
+	stackGuid, err := d.CF.GetStackGUID(stackName)
+	if err != nil {
+		return err
+	}
+
+	appMetas, err := d.CF.GetAllApps()
+	if err != nil {
+		return err
+	}
+
+	for _, appMeta := range appMetas {
+		for _, app := range appMeta.Apps {
+			if app.Entity.StackGUID == stackGuid {
+				return fmt.Errorf(DeleteStackAppErr, stackName)
+			}
+		}
+	}
+
+	return nil
+}
+
+func checkCurlDelete(out, stackName string) error {
+	out = strings.Trim(out, " \n")
 	var curlErr struct {
 		Description string
-		ErrorCode  string
-		Code   int
-
+		ErrorCode   string
+		Code        int
 	}
 
 	isJSON := strings.HasPrefix(out, "{") && strings.HasSuffix(out, "}")
@@ -52,7 +102,5 @@ func checkCurlDelete(out, stackName string) error {
 		return err
 	}
 
-
 	return fmt.Errorf("Failed to delete stack %s with error: %s", stackName, curlErr.Description)
-
 }

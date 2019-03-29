@@ -20,6 +20,33 @@
          "entity": {
             "name": "stackB"
          }
+      },
+      {
+         "metadata": {
+            "guid": "stackCGuid"
+
+         },
+         "entity": {
+            "name": "stackC"
+         }
+      },
+      {
+         "metadata": {
+            "guid": "stackDGuid"
+
+         },
+         "entity": {
+            "name": "stackD"
+         }
+      },
+      {
+         "metadata": {
+            "guid": "stackEGuid"
+
+         },
+         "entity": {
+            "name": "stackE"
+         }
       }
    ]
 }

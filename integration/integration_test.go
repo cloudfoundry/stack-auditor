@@ -22,6 +22,8 @@ import (
 const (
 	oldStack            = "cflinuxfs2"
 	newStack            = "cflinuxfs3"
+	fakeStack           = "fakeStack"
+	fakeBuildpack       = "fakeBuildpack"
 	oldStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 14.04)"
 	newStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 18.04)"
 )
@@ -122,15 +124,16 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 	when("Delete Stack", func() {
 		it.Before(func() {
+			Expect(CreateStack(fakeStack, oldStackDescription)).To(Succeed())
 			Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
 			Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
 		})
 
 		it("should delete the stack", func() {
-			cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
+			cmd := exec.Command("cf", "delete-stack", fakeStack, "-f")
 			output, err := cmd.CombinedOutput()
 			Expect(err).NotTo(HaveOccurred(), string(output))
-			Expect(string(output)).To(ContainSubstring(fmt.Sprintf("%s has been deleted", oldStack)))
+			Expect(string(output)).To(ContainSubstring(fmt.Sprintf("%s has been deleted", fakeStack)))
 		})
 
 		when("an app is using the stack", func() {
@@ -156,7 +159,25 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred())
-				Expect(string(out)).To(ContainSubstring("Failed to delete stack cflinuxfs2"))
+				Expect(string(out)).To(ContainSubstring("failed to delete stack " + oldStack))
+			})
+		})
+
+		when("a buildpack is using the stack", func() {
+			it.Before(func() {
+				Expect(CreateBuildpack(fakeBuildpack, fakeStack)).To(Succeed())
+			})
+			it.After(func() {
+				cmd := exec.Command("cf", "delete-buildpack", fakeBuildpack, "-f")
+				Expect(cmd.Run()).To(Succeed())
+				cmd = exec.Command("cf", "delete-stack", fakeStack, "-f")
+				Expect(cmd.Run()).To(Succeed())
+			})
+			it("fails to delete the stack", func() {
+				cmd := exec.Command("cf", "delete-stack", fakeStack, "-f")
+				out, err := cmd.CombinedOutput()
+				Expect(err).To(HaveOccurred())
+				Expect(string(out)).To(ContainSubstring("you still have buildpacks associated to " + fakeStack))
 			})
 		})
 	})
@@ -196,6 +217,13 @@ func GetOrgAndSpace() (string, string, error) {
 func CreateStack(stackName, description string) error {
 	data := fmt.Sprintf(`{"name":"%s", "description":"%s"}`, stackName, description)
 	cmd := exec.Command("cf", "curl", "/v2/stacks", "-X", "POST", "-d", data)
+
+	return cmd.Run()
+}
+
+func CreateBuildpack(buildpackName, stackName string) error {
+	data := fmt.Sprintf(`{"name":"%s", "stack":"%s"}`, buildpackName, stackName)
+	cmd := exec.Command("cf", "curl", "/v2/buildpacks", "-X", "POST", "-d", data)
 
 	return cmd.Run()
 }
