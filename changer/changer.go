@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	ChangeStackSuccessMsg      = "\nApplication %s was successfully changed to Stack %s"
-	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n"
+	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n\n"
+	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
 )
 
 type Changer struct {
@@ -16,6 +16,8 @@ type Changer struct {
 }
 
 func (c *Changer) ChangeStack(appName string, stackName string) (string, error) {
+	fmt.Printf(AttemptingToChangeStackMsg, stackName, appName)
+
 	stackGuid, err := c.CF.GetStackGUID(stackName)
 	if err != nil {
 		return "", err
@@ -29,8 +31,6 @@ func (c *Changer) ChangeStack(appName string, stackName string) (string, error) 
 	if appInitialInfo.Entity.StackGUID == stackGuid {
 		return "", fmt.Errorf("application is already associated with stack %s", stackName)
 	}
-
-	fmt.Printf(AttemptingToChangeStackMsg, stackName, appName)
 
 	appGuid := appInitialInfo.Metadata.GUID
 	if _, err = c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+stackGuid+`","state":"STOPPED"}`); err != nil {
