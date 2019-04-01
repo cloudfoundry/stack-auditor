@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"code.cloudfoundry.org/cli/plugin"
 	"github.com/cloudfoundry/stack-auditor/resources"
@@ -136,10 +137,17 @@ func (cf *CF) getCFContext() (orgMap, spaceNameMap, spaceOrgMap, stackMap map[st
 }
 
 func (cf *CF) getOrgs() (resources.Orgs, error) {
-	return cf.Conn.GetOrgs()
+	start := time.Now().UnixNano()
+
+	result, err := cf.Conn.GetOrgs()
+	fmt.Println("BENCHMARK getOrgs: ", (time.Now().UnixNano()-start)/(int64(time.Millisecond)/int64(time.Nanosecond)))
+
+	return result, err
 }
 
 func (cf *CF) getAllSpaces() (resources.Spaces, error) {
+	start := time.Now().UnixNano()
+
 	var allSpaces resources.Spaces
 	nextSpaceURL := "/v2/spaces"
 	for nextSpaceURL != "" {
@@ -156,10 +164,14 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 		allSpaces = append(allSpaces, spaces)
 	}
 
+	fmt.Println("BENCHMARK getAllSpaces: ", (time.Now().UnixNano()-start)/(int64(time.Millisecond)/int64(time.Nanosecond)))
+
 	return allSpaces, nil
 }
 
 func (cf *CF) getAllStacks() (resources.Stacks, error) {
+	start := time.Now().UnixNano()
+
 	var allStacks resources.Stacks
 	nextStackURL := "/v2/stacks"
 	for nextStackURL != "" {
@@ -176,10 +188,12 @@ func (cf *CF) getAllStacks() (resources.Stacks, error) {
 		allStacks = append(allStacks, stacks)
 	}
 
+	fmt.Println("BENCHMARK getAllStacks: ", (time.Now().UnixNano()-start)/(int64(time.Millisecond)/int64(time.Nanosecond)))
 	return allStacks, nil
 }
 
 func (cf *CF) GetAllApps() ([]resources.AppsJSON, error) {
+	start := time.Now().UnixNano()
 	var allApps []resources.AppsJSON
 	nextURL := "/v2/apps"
 	for nextURL != "" {
@@ -196,5 +210,6 @@ func (cf *CF) GetAllApps() ([]resources.AppsJSON, error) {
 		nextURL = apps.NextURL
 		allApps = append(allApps, apps)
 	}
+	fmt.Println("BENCHMARK GetAllApps: ", (time.Now().UnixNano()-start)/(int64(time.Millisecond)/int64(time.Nanosecond)))
 	return allApps, nil
 }
