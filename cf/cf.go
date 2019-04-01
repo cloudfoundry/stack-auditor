@@ -89,7 +89,7 @@ func (cf *CF) GetApp(appName string, stackName string) (resources.App, error) {
 
 func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
 	var allBuildpacks []resources.BuildpacksJSON
-	nextURL := "/v2/buildpacks"
+	nextURL := "/v2/buildpacks?results-per-page=100"
 	for nextURL != "" {
 		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
 		if err != nil {
@@ -141,7 +141,7 @@ func (cf *CF) getOrgs() (resources.Orgs, error) {
 
 func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 	var allSpaces resources.Spaces
-	nextSpaceURL := "/v2/spaces"
+	nextSpaceURL := "/v2/spaces?results-per-page=100"
 	for nextSpaceURL != "" {
 		spacesJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextSpaceURL)
 		if err != nil {
@@ -161,7 +161,7 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 
 func (cf *CF) getAllStacks() (resources.Stacks, error) {
 	var allStacks resources.Stacks
-	nextStackURL := "/v2/stacks"
+	nextStackURL := "/v2/stacks?results-per-page=100"
 	for nextStackURL != "" {
 		stacksJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextStackURL)
 		if err != nil {
@@ -181,7 +181,7 @@ func (cf *CF) getAllStacks() (resources.Stacks, error) {
 
 func (cf *CF) GetAllApps() ([]resources.AppsJSON, error) {
 	var allApps []resources.AppsJSON
-	nextURL := "/v2/apps"
+	nextURL := "/v2/apps?results-per-page=100"
 	for nextURL != "" {
 		appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
 		if err != nil {
