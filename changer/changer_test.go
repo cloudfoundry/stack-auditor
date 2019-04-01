@@ -1,6 +1,7 @@
 package changer_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
@@ -62,7 +63,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 				result, err := c.ChangeStack(AppBName, StackAName)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(result).To(Equal("\nApplication appB was successfully changed to Stack stackA"))
+				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppBName, StackAName)))
 			})
 		})
 
@@ -75,7 +76,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 				result, err := c.ChangeStack(AppAName, StackBName)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(result).To(Equal("\nApplication appA was successfully changed to Stack stackB"))
+				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
 
 			})
 		})
