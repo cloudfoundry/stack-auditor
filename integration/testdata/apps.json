@@ -14,7 +14,7 @@
       "entity": {
         "name": "appA",
         "production": false,
-        "space_guid": "spaceAGuid",
+        "space_guid": "commonSpaceGuid",
         "stack_guid": "stackAGuid",
         "buildpack": "nodejs_buildpack",
         "detected_buildpack": "nodejs",
@@ -47,7 +47,7 @@
         "ports": [
           8080
         ],
-        "space_url": "/v2/spaces/spaceAGuid",
+        "space_url": "/v2/spaces/commonSpaceGuid",
         "stack_url": "/v2/stacks/stackAGuid",
         "routes_url": "/v2/apps/appAGuid/routes",
         "events_url": "/v2/apps/appAGuid/events",
@@ -65,7 +65,7 @@
       "entity": {
         "name": "appB",
         "production": false,
-        "space_guid": "spaceBGuid",
+        "space_guid": "commonSpaceGuid",
         "stack_guid": "stackBGuid",
         "buildpack": "https://github.com/cloudfoundry/dotnet-core-buildpack#develop",
         "detected_buildpack": null,
@@ -74,7 +74,7 @@
         "memory": 128,
         "instances": 1,
         "disk_quota": 1024,
-        "state": "STARTED",
+        "state": "STOPPED",
         "version": "1b19b99d-23c8-4410-b50c-cca42eca0b62",
         "command": null,
         "console": false,
@@ -98,7 +98,7 @@
         "ports": [
           8080
         ],
-        "space_url": "/v2/spaces/spaceBGuid",
+        "space_url": "/v2/spaces/commonSpaceGuid",
         "stack_url": "/v2/stacks/stackBGuid",
         "routes_url": "/v2/apps/appBGuid/routes",
         "events_url": "/v2/apps/appBGuid/events",

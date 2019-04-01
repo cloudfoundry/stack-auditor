@@ -17,5 +17,6 @@ type App struct {
 		Name      string `json:"name"`
 		SpaceGUID string `json:"space_guid"`
 		StackGUID string `json:"stack_guid"`
+		State     string `json:"state"`
 	} `json:"entity"`
 }

@@ -18,6 +18,8 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	Expect(err).ToNot(HaveOccurred())
 	stacks, err := fileToString("stacks.json")
 	Expect(err).ToNot(HaveOccurred())
+	buildpacks, err := fileToString("buildpacks.json")
+	Expect(err).ToNot(HaveOccurred())
 
 	mockConnection := NewMockCliConnection(mockCtrl)
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps").Return(
@@ -34,12 +36,16 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 		[]string{
 			stacks,
 		}, nil).AnyTimes()
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/buildpacks").Return(
+		[]string{
+			buildpacks,
+		}, nil).AnyTimes()
 
 	mockConnection.EXPECT().GetOrgs().Return(
 		[]plugin_models.GetOrgs_Model{
 			plugin_models.GetOrgs_Model{
-				Guid: "orgAGuid",
-				Name: "orgA",
+				Guid: "commonOrgGuid",
+				Name: "commonOrg",
 			},
 
 			plugin_models.GetOrgs_Model{
@@ -48,7 +54,7 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 			},
 		}, nil).AnyTimes()
 
-	SetCurrentOrgAndSpace(mockConnection, "orgA", "spaceA")
+	SetCurrentOrgAndSpace(mockConnection, "commonOrg", "commonSpace")
 
 	return mockConnection
 }

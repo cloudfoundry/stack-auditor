@@ -6,7 +6,10 @@ import (
 	"github.com/cloudfoundry/stack-auditor/cf"
 )
 
-const ChangeStackSuccessMsg = "\nApplication %s was successfully changed to Stack %s"
+const (
+	ChangeStackSuccessMsg      = "\nApplication %s was successfully changed to Stack %s"
+	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n"
+)
 
 type Changer struct {
 	CF cf.CF
@@ -18,22 +21,26 @@ func (c *Changer) ChangeStack(appName string, stackName string) (string, error) 
 		return "", err
 	}
 
-	appInfo, err := c.CF.GetApp(appName, stackName)
+	appInitialInfo, err := c.CF.GetApp(appName, stackName)
 	if err != nil {
 		return "", err
 	}
 
-	if appInfo.Entity.StackGUID == stackGuid {
+	if appInitialInfo.Entity.StackGUID == stackGuid {
 		return "", fmt.Errorf("application is already associated with stack %s", stackName)
 	}
 
-	appGuid := appInfo.Metadata.GUID
+	fmt.Printf(AttemptingToChangeStackMsg, stackName, appName)
+
+	appGuid := appInitialInfo.Metadata.GUID
 	if _, err = c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+stackGuid+`","state":"STOPPED"}`); err != nil {
 		return "", err
 	}
 
-	if _, err := c.CF.Conn.CliCommand("start", appName); err != nil {
-		return "", err
+	if appInitialInfo.Entity.State == "STARTED" {
+		if _, err := c.CF.Conn.CliCommand("start", appName); err != nil {
+			return "", err
+		}
 	}
 
 	result := fmt.Sprintf(ChangeStackSuccessMsg, appName, stackName)

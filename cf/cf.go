@@ -87,6 +87,26 @@ func (cf *CF) GetApp(appName string, stackName string) (resources.App, error) {
 	return resources.App{}, errors.New("application could not be found")
 }
 
+func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
+	var allBuildpacks []resources.BuildpacksJSON
+	nextURL := "/v2/buildpacks"
+	for nextURL != "" {
+		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
+		if err != nil {
+			return nil, err
+		}
+
+		var buildpacks resources.BuildpacksJSON
+
+		if err := json.Unmarshal([]byte(strings.Join(buildpackJSON, "")), &buildpacks); err != nil {
+			return nil, fmt.Errorf("error unmarshaling apps json: %v", err)
+		}
+		nextURL = buildpacks.NextURL
+		allBuildpacks = append(allBuildpacks, buildpacks)
+	}
+	return allBuildpacks, nil
+}
+
 func (cf *CF) getCFContext() (orgMap, spaceNameMap, spaceOrgMap, stackMap map[string]string, allApps []resources.AppsJSON, err error) {
 	orgs, err := cf.getOrgs()
 	if err != nil {
@@ -103,7 +123,7 @@ func (cf *CF) getCFContext() (orgMap, spaceNameMap, spaceOrgMap, stackMap map[st
 		return nil, nil, nil, nil, nil, err
 	}
 
-	allApps, err = cf.getAllApps()
+	allApps, err = cf.GetAllApps()
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -159,7 +179,7 @@ func (cf *CF) getAllStacks() (resources.Stacks, error) {
 	return allStacks, nil
 }
 
-func (cf *CF) getAllApps() ([]resources.AppsJSON, error) {
+func (cf *CF) GetAllApps() ([]resources.AppsJSON, error) {
 	var allApps []resources.AppsJSON
 	nextURL := "/v2/apps"
 	for nextURL != "" {

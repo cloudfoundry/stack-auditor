@@ -1,6 +1,12 @@
 # Stack Auditor
 
-## Compiling
+## Installation
+
+* Download the latest stack-auditor from the [release section](https://github.com/cloudfoundry/stack-auditor/releases) of this repository. 
+* Unpack the archive on your local box using `tar xvzf <archive> [-C <directory>]` or use a file explored. 
+* Install the plugin with `cf install-plugin <path_to_binary>`.
+
+### Alternative: Compile from source
 
 Prerequisite: Have a working golang environment with correctly set
 `GOPATH`.

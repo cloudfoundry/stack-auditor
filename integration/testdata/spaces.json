@@ -6,22 +6,12 @@
    "resources": [
       {
          "metadata": {
-            "guid": "spaceAGuid",
-            "url": "/v2/spaces/spaceAGuid"
+            "guid": "commonSpaceGuid",
+            "url": "/v2/spaces/commonSpaceGuid"
          },
          "entity": {
-            "name": "spaceA",
-            "organization_guid": "orgAGuid"
-         }
-      },
-      {
-         "metadata": {
-            "guid": "spaceBGuid",
-            "url": "/v2/spaces/spaceBGuid"
-         },
-         "entity": {
-            "name": "spaceB",
-            "organization_guid": "orgBGuid"
+            "name": "commonSpace",
+            "organization_guid": "commonOrgGuid"
          }
       }
    ]
