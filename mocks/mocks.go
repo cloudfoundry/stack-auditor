@@ -1,8 +1,11 @@
 package mocks
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
+
+	"github.com/cloudfoundry/stack-auditor/cf"
 
 	"code.cloudfoundry.org/cli/plugin/models"
 	"github.com/golang/mock/gomock"
@@ -22,21 +25,21 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	Expect(err).ToNot(HaveOccurred())
 
 	mockConnection := NewMockCliConnection(mockCtrl)
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps?results-per-page=100").Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/apps?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		[]string{
 			apps,
 		}, nil).AnyTimes()
 
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/spaces?results-per-page=100").Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/spaces?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		[]string{
 			spaces,
 		}, nil).AnyTimes()
 
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/stacks?results-per-page=100").Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/stacks?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		[]string{
 			stacks,
 		}, nil).AnyTimes()
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/buildpacks?results-per-page=100").Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/buildpacks?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		[]string{
 			buildpacks,
 		}, nil).AnyTimes()

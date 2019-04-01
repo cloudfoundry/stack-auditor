@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudfoundry/stack-auditor/cf"
+
 	"github.com/cloudfoundry/libbuildpack/cutlass"
 
 	"github.com/sclevine/spec/report"
@@ -72,7 +74,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 	})
 
 	when.Pend("Audit Stack", func() {
-		const appCount = 51 //50 apps per page
+		const appCount = cf.V2ResultsPerPage + 1
 		var (
 			apps               [appCount]*cutlass.App
 			spaceName, orgName string
