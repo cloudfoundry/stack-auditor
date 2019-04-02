@@ -32,7 +32,7 @@ func (d *Deleter) DeleteStack(stackName string) (string, error) {
 		return "", err
 	}
 
-	lines, err := d.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/stacks/"+stackGuid, "-X", "DELETE")
+	lines, err := d.CF.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", "/v2/stacks/"+stackGuid, "-X", "DELETE")
 	if err != nil {
 		return "", err
 	}
@@ -64,11 +64,6 @@ func (d *Deleter) hasBuildpackAssociation(stackName string) error {
 }
 
 func (d *Deleter) hasAppAssociation(stackName string) error {
-	stackGuid, err := d.CF.GetStackGUID(stackName)
-	if err != nil {
-		return err
-	}
-
 	appMetas, err := d.CF.GetAllApps()
 	if err != nil {
 		return err
@@ -76,7 +71,7 @@ func (d *Deleter) hasAppAssociation(stackName string) error {
 
 	for _, appMeta := range appMetas {
 		for _, app := range appMeta.Apps {
-			if app.Entity.StackGUID == stackGuid {
+			if app.Lifecycle.Data.Stack == stackName {
 				return fmt.Errorf(DeleteStackAppErr, stackName)
 			}
 		}

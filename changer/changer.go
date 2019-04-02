@@ -11,38 +11,46 @@ const (
 	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
 )
 
+type RequestData struct {
+	LifeCycle struct {
+		Data struct {
+			Stack string `json:"stack"`
+		} `json:"data"`
+	} `json:"lifecycle"`
+}
+
 type Changer struct {
 	CF cf.CF
 }
 
-func (c *Changer) ChangeStack(appName string, stackName string) (string, error) {
-	fmt.Printf(AttemptingToChangeStackMsg, stackName, appName)
+func (c *Changer) ChangeStack(appName string, newStack string) (string, error) {
+	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
 
-	stackGuid, err := c.CF.GetStackGUID(stackName)
+	appInitialInfo, err := c.CF.GetApp(appName, newStack)
 	if err != nil {
 		return "", err
 	}
 
-	appInitialInfo, err := c.CF.GetApp(appName, stackName)
+	if appInitialInfo.Lifecycle.Data.Stack == newStack {
+		return "", fmt.Errorf("application is already associated with stack %s", newStack)
+	}
+
+	stackGuid, err := c.CF.GetStackGUID(newStack)
 	if err != nil {
 		return "", err
 	}
 
-	if appInitialInfo.Entity.StackGUID == stackGuid {
-		return "", fmt.Errorf("application is already associated with stack %s", stackName)
-	}
-
-	appGuid := appInitialInfo.Metadata.GUID
-	if _, err = c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+stackGuid+`","state":"STOPPED"}`); err != nil {
+	appGuid := appInitialInfo.GUID
+	if _, err = c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+stackGuid+`","state":"STOPPED"}`); err != nil {
 		return "", err
 	}
 
-	if appInitialInfo.Entity.State == "STARTED" {
+	if appInitialInfo.State == "STARTED" {
 		if _, err := c.CF.Conn.CliCommand("start", appName); err != nil {
 			return "", err
 		}
 	}
 
-	result := fmt.Sprintf(ChangeStackSuccessMsg, appName, stackName)
+	result := fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack)
 	return result, nil
 }

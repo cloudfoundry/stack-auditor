@@ -63,8 +63,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			PushAppAndConfirm(app)
 			cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 			output, err := cmd.Output()
-			Expect(output).To(ContainSubstring("Starting app %s", app.Name))
 			Expect(err).ToNot(HaveOccurred())
+			Expect(string(output)).To(ContainSubstring("Starting app %s", app.Name))
 
 			cmd = exec.Command("cf", "app", app.Name)
 			contents, err := cmd.Output()
@@ -74,7 +74,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 	})
 
 	when.Pend("Audit Stack", func() {
-		const appCount = cf.V2ResultsPerPage + 1
+		const appCount = cf.V3ResultsPerPage / 10
 		var (
 			apps               [appCount]*cutlass.App
 			spaceName, orgName string
@@ -97,7 +97,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				apps[i].Memory = "128M"
 				apps[i].Disk = "128M"
 
-				go func(i int) {
+				go func(i int) { // Maybe use a worker pool to not bombard our api
 					defer wg.Done()
 					PushAppAndConfirm(apps[i])
 				}(i)

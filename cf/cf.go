@@ -14,23 +14,26 @@ type CF struct {
 	Conn plugin.CliConnection
 }
 
-const V2ResultsPerPage = 100
+const (
+	V2ResultsPerPage = 100
+	V3ResultsPerPage = 5000
+)
 
 func (cf *CF) GetAppsAndStacks() ([]string, error) {
 	var entries []string
 
-	orgMap, spaceNameMap, spaceOrgMap, stackMap, allApps, err := cf.getCFContext()
+	orgMap, spaceNameMap, spaceOrgMap, allApps, err := cf.getCFContext()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, appsJSON := range allApps {
 		for _, app := range appsJSON.Apps {
-			appName := app.Entity.Name
-			spaceName := spaceNameMap[app.Entity.SpaceGUID]
-			stackName := stackMap[app.Entity.StackGUID]
+			appName := app.Name
+			spaceName := spaceNameMap[app.Relationships.Space.Data.GUID]
+			stackName := app.Lifecycle.Data.Stack
 
-			orgName := orgMap[spaceOrgMap[app.Entity.SpaceGUID]]
+			orgName := orgMap[spaceOrgMap[app.Relationships.Space.Data.GUID]]
 			entries = append(entries, fmt.Sprintf("%s/%s/%s %s", orgName, spaceName, appName, stackName))
 		}
 	}
@@ -38,62 +41,59 @@ func (cf *CF) GetAppsAndStacks() ([]string, error) {
 }
 
 func (cf *CF) GetStackGUID(stackName string) (string, error) {
-	allStacks, err := cf.getAllStacks()
+	out, err := cf.Conn.CliCommandWithoutTerminalOutput("stack", "--guid", stackName)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get GUID of %s", stackName)
 	}
 
-	stackGuid := ""
-	stackMap := allStacks.MakeStackMap()
-	for guid, val := range stackMap {
-		if val == stackName {
-			stackGuid = guid
-			break
-		}
-	}
-	if stackGuid == "" {
+	if len(out) == 0 {
 		return "", fmt.Errorf("%s is not a valid stack", stackName)
 	}
 
-	return stackGuid, nil
+	stackGUID := out[0]
+	if stackGUID == "" {
+		return "", fmt.Errorf("%s is not a valid stack", stackName)
+	}
+
+	return stackGUID, nil
 }
 
-func (cf *CF) GetApp(appName string, stackName string) (resources.App, error) {
-	orgMap, spaceNameMap, spaceOrgMap, _, allApps, err := cf.getCFContext()
+func (cf *CF) GetApp(appName string, stackName string) (resources.V3App, error) {
+	orgMap, spaceNameMap, spaceOrgMap, allApps, err := cf.getCFContext()
 	if err != nil {
-		return resources.App{}, err
+		return resources.V3App{}, err
 	}
 
 	org, err := cf.Conn.GetCurrentOrg()
 	if err != nil {
-		return resources.App{}, err
+		return resources.V3App{}, err
 	}
 
 	space, err := cf.Conn.GetCurrentSpace()
 	if err != nil {
-		return resources.App{}, err
+		return resources.V3App{}, err
 	}
 
 	for _, appsJSON := range allApps {
-		for _, cur := range appsJSON.Apps {
-			curApp := cur.Entity.Name
-			curSpace := spaceNameMap[cur.Entity.SpaceGUID]
-			curOrg := orgMap[spaceOrgMap[cur.Entity.SpaceGUID]]
+		for _, app := range appsJSON.Apps {
+			curApp := app.Name
+			curSpace := spaceNameMap[app.Relationships.Space.Data.GUID]
+			curOrg := orgMap[spaceOrgMap[app.Relationships.Space.Data.GUID]]
 
 			if curOrg == org.Name && curSpace == space.Name && curApp == appName {
-				return cur, nil
+				return app, nil
 			}
 		}
 	}
 
-	return resources.App{}, errors.New("application could not be found")
+	return resources.V3App{}, errors.New("application could not be found")
 }
 
 func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
 	var allBuildpacks []resources.BuildpacksJSON
 	nextURL := fmt.Sprintf("/v2/buildpacks?results-per-page=%d", V2ResultsPerPage)
 	for nextURL != "" {
-		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
+		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", nextURL)
 		if err != nil {
 			return nil, err
 		}
@@ -109,32 +109,26 @@ func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
 	return allBuildpacks, nil
 }
 
-func (cf *CF) getCFContext() (orgMap, spaceNameMap, spaceOrgMap, stackMap map[string]string, allApps []resources.AppsJSON, err error) {
+func (cf *CF) getCFContext() (orgMap, spaceNameMap, spaceOrgMap map[string]string, allApps []resources.V3AppsJSON, err error) {
 	orgs, err := cf.getOrgs()
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	allSpaces, err := cf.getAllSpaces()
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-
-	allStacks, err := cf.getAllStacks()
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	allApps, err = cf.GetAllApps()
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	orgMap = orgs.Map()
 	spaceNameMap, spaceOrgMap = allSpaces.MakeSpaceOrgAndNameMap()
-	stackMap = allStacks.MakeStackMap()
 
-	return orgMap, spaceNameMap, spaceOrgMap, stackMap, allApps, nil
+	return orgMap, spaceNameMap, spaceOrgMap, allApps, nil
 }
 
 func (cf *CF) getOrgs() (resources.Orgs, error) {
@@ -145,7 +139,7 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 	var allSpaces resources.Spaces
 	nextSpaceURL := fmt.Sprintf("/v2/spaces?results-per-page=%d", V2ResultsPerPage)
 	for nextSpaceURL != "" {
-		spacesJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextSpaceURL)
+		spacesJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", nextSpaceURL)
 		if err != nil {
 			return nil, err
 		}
@@ -161,41 +155,21 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 	return allSpaces, nil
 }
 
-func (cf *CF) getAllStacks() (resources.Stacks, error) {
-	var allStacks resources.Stacks
-	nextStackURL := fmt.Sprintf("/v2/stacks?results-per-page=%d", V2ResultsPerPage)
-	for nextStackURL != "" {
-		stacksJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextStackURL)
-		if err != nil {
-			return nil, err
-		}
-
-		var stacks resources.StacksJSON
-		if err := json.Unmarshal([]byte(strings.Join(stacksJSON, "")), &stacks); err != nil {
-			return nil, fmt.Errorf("error unmarshaling stacks json: %v", err)
-		}
-		nextStackURL = stacks.NextURL
-		allStacks = append(allStacks, stacks)
-	}
-
-	return allStacks, nil
-}
-
-func (cf *CF) GetAllApps() ([]resources.AppsJSON, error) {
-	var allApps []resources.AppsJSON
-	nextURL := fmt.Sprintf("/v2/apps?results-per-page=%d", V2ResultsPerPage)
+func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
+	var allApps []resources.V3AppsJSON
+	nextURL := fmt.Sprintf("/v3/apps?per_page=%d", V3ResultsPerPage)
 	for nextURL != "" {
-		appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
+		appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", nextURL)
 		if err != nil {
 			return nil, err
 		}
 
-		var apps resources.AppsJSON
+		var apps resources.V3AppsJSON
 
 		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
 			return nil, fmt.Errorf("error unmarshaling apps json: %v", err)
 		}
-		nextURL = apps.NextURL
+		nextURL = apps.Pagination.Next.Href
 		allApps = append(allApps, apps)
 	}
 	return allApps, nil

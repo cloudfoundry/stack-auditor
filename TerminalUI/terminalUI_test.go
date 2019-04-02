@@ -16,8 +16,8 @@ func TestUnitTerminalUI(t *testing.T) {
 func testTerminalUI(t *testing.T, when spec.G, it spec.S) {
 	var (
 		uiController UIController
-		outputBuffer  bytes.Buffer
-		inputBuffer	 bytes.Buffer
+		outputBuffer bytes.Buffer
+		inputBuffer  bytes.Buffer
 	)
 
 	it.Before(func() {
