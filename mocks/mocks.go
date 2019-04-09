@@ -32,12 +32,12 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	Expect(err).ToNot(HaveOccurred())
 
 	mockConnection := NewMockCliConnection(mockCtrl)
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "--fail", fmt.Sprintf("/v3/apps?per_page=%d", cf.V3ResultsPerPage)).Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?per_page=%d", cf.V3ResultsPerPage)).Return(
 		[]string{
 			apps,
 		}, nil).AnyTimes()
 
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "--fail", fmt.Sprintf("/v2/spaces?results-per-page=%d", cf.V2ResultsPerPage)).Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/spaces?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		[]string{
 			spaces,
 		}, nil).AnyTimes()
@@ -60,7 +60,7 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("stack", "--guid", gomock.Any()).Return(
 		[]string{}, nil).AnyTimes()
 
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "--fail", fmt.Sprintf("/v2/buildpacks?results-per-page=%d", cf.V2ResultsPerPage)).Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/buildpacks?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		[]string{
 			buildpacks,
 		}, nil).AnyTimes()

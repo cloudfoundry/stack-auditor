@@ -41,7 +41,7 @@ func (c *Changer) ChangeStack(appName string, newStack string) (string, error) {
 	}
 
 	appGuid := appInitialInfo.GUID
-	if _, err = c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+stackGuid+`","state":"STOPPED"}`); err != nil {
+	if _, err = c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+stackGuid+`","state":"STOPPED"}`); err != nil {
 		return "", err
 	}
 

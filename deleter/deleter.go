@@ -32,7 +32,7 @@ func (d *Deleter) DeleteStack(stackName string) (string, error) {
 		return "", err
 	}
 
-	lines, err := d.CF.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", "/v2/stacks/"+stackGuid, "-X", "DELETE")
+	lines, err := d.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/stacks/"+stackGuid, "-X", "DELETE")
 	if err != nil {
 		return "", err
 	}

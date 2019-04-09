@@ -58,7 +58,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 	when("running change-stack", func() {
 		when("the app is initially stopped", func() {
 			it("does not start the app after changing stacks", func() {
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "--fail", "/v2/apps/"+AppBGuid, "-X", "PUT", `-d={"stack_guid":"`+StackAGuid+`","state":"STOPPED"}`).Return(
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+AppBGuid, "-X", "PUT", `-d={"stack_guid":"`+StackAGuid+`","state":"STOPPED"}`).Return(
 					[]string{}, nil)
 
 				//mockConnection.EXPECT().GetApp(AppBName, StackAName)
@@ -72,7 +72,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 		when("the app is initially started", func() {
 			it("starts the app after changing stacks", func() {
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "--fail", "/v2/apps/"+AppAGuid, "-X", "PUT", `-d={"stack_guid":"`+StackBGuid+`","state":"STOPPED"}`).Return(
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+AppAGuid, "-X", "PUT", `-d={"stack_guid":"`+StackBGuid+`","state":"STOPPED"}`).Return(
 					[]string{}, nil)
 
 				mockConnection.EXPECT().CliCommand("start", AppAName)

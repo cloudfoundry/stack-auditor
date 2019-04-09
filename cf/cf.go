@@ -93,7 +93,7 @@ func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
 	var allBuildpacks []resources.BuildpacksJSON
 	nextURL := fmt.Sprintf("/v2/buildpacks?results-per-page=%d", V2ResultsPerPage)
 	for nextURL != "" {
-		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", nextURL)
+		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 	var allSpaces resources.Spaces
 	nextSpaceURL := fmt.Sprintf("/v2/spaces?results-per-page=%d", V2ResultsPerPage)
 	for nextSpaceURL != "" {
-		spacesJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", nextSpaceURL)
+		spacesJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextSpaceURL)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 	var allApps []resources.V3AppsJSON
 	nextURL := fmt.Sprintf("/v3/apps?per_page=%d", V3ResultsPerPage)
 	for nextURL != "" {
-		appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", "--fail", nextURL)
+		appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
 		if err != nil {
 			return nil, err
 		}
