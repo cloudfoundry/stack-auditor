@@ -2,10 +2,9 @@ package mocks
 
 import (
 	"fmt"
+	"github.com/cloudfoundry/stack-auditor/cf"
 	"io/ioutil"
 	"path/filepath"
-
-	"github.com/cloudfoundry/stack-auditor/cf"
 
 	"code.cloudfoundry.org/cli/plugin/models"
 	"github.com/golang/mock/gomock"
@@ -26,7 +25,6 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	apps, err := fileToString("apps.json")
 	Expect(err).ToNot(HaveOccurred())
 	spaces, err := fileToString("spaces.json")
-	Expect(err).ToNot(HaveOccurred())
 	Expect(err).ToNot(HaveOccurred())
 	buildpacks, err := fileToString("buildpacks.json")
 	Expect(err).ToNot(HaveOccurred())
@@ -78,19 +76,19 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 			},
 		}, nil).AnyTimes()
 
-	SetCurrentOrgAndSpace(mockConnection, "commonOrg", "commonSpace")
+	SetCurrentOrgAndSpace(mockConnection, "commonOrg", "commonSpace", "commonSpaceGuid")
 
 	return mockConnection
 }
 
-func SetCurrentOrgAndSpace(mockConnection *MockCliConnection, org string, space string) {
+func SetCurrentOrgAndSpace(mockConnection *MockCliConnection, org string, space string, spaceGuid string) {
 	mockConnection.EXPECT().GetCurrentOrg().Return(plugin_models.Organization{
 		OrganizationFields: plugin_models.OrganizationFields{
 			Name: org},
 	}, nil).AnyTimes()
 	mockConnection.EXPECT().GetCurrentSpace().Return(plugin_models.Space{
 		SpaceFields: plugin_models.SpaceFields{
-			Name: space},
+			Name: space, Guid: spaceGuid},
 	}, nil).AnyTimes()
 }
 

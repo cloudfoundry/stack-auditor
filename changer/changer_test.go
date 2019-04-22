@@ -61,9 +61,6 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+AppBGuid, "-X", "PUT", `-d={"stack_guid":"`+StackAGuid+`","state":"STOPPED"}`).Return(
 					[]string{}, nil)
 
-				//mockConnection.EXPECT().GetApp(AppBName, StackAName)
-				//mockConnection.EXPECT().CliCommandWithoutTerminalOutput("stack", "--guid", StackAName)
-
 				result, err := c.ChangeStack(AppBName, StackAName)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppBName, StackAName)))

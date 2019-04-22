@@ -1,8 +1,8 @@
 package cf
 
 import (
+	"code.cloudfoundry.org/cli/cf/errors"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -56,37 +56,6 @@ func (cf *CF) GetStackGUID(stackName string) (string, error) {
 	}
 
 	return stackGUID, nil
-}
-
-func (cf *CF) GetApp(appName string, stackName string) (resources.V3App, error) {
-	orgMap, spaceNameMap, spaceOrgMap, allApps, err := cf.getCFContext()
-	if err != nil {
-		return resources.V3App{}, err
-	}
-
-	org, err := cf.Conn.GetCurrentOrg()
-	if err != nil {
-		return resources.V3App{}, err
-	}
-
-	space, err := cf.Conn.GetCurrentSpace()
-	if err != nil {
-		return resources.V3App{}, err
-	}
-
-	for _, appsJSON := range allApps {
-		for _, app := range appsJSON.Apps {
-			curApp := app.Name
-			curSpace := spaceNameMap[app.Relationships.Space.Data.GUID]
-			curOrg := orgMap[spaceOrgMap[app.Relationships.Space.Data.GUID]]
-
-			if curOrg == org.Name && curSpace == space.Name && curApp == appName {
-				return app, nil
-			}
-		}
-	}
-
-	return resources.V3App{}, errors.New("application could not be found")
 }
 
 func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
@@ -173,4 +142,25 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 		allApps = append(allApps, apps)
 	}
 	return allApps, nil
+}
+
+func (cf *CF) GetAppInfo(appName, spaceGuid string) (appGuid, appState, appStack string, err error) {
+
+	apps, err := cf.GetAllApps()
+	if err != nil {
+		return "", "", "", err
+	}
+
+	for _, appsJSON := range apps {
+		for _, app := range appsJSON.Apps {
+			curApp := app.Name
+			curSpace := app.Relationships.Space.Data.GUID
+
+			if curSpace == spaceGuid && curApp == appName {
+				return app.GUID, app.State, app.Lifecycle.Data.Stack, nil
+			}
+		}
+	}
+	return "", "", "", errors.New("application could not be found")
+
 }
