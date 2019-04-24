@@ -1,5 +1,7 @@
 # Stack Auditor
 
+![Stack Auditor Logo](logo.png "Stack Auditor Logo")
+
 ## Installation
 
 * Download the latest stack-auditor from the [release section](https://github.com/cloudfoundry/stack-auditor/releases) of this repository. 
