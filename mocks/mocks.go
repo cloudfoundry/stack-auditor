@@ -2,9 +2,10 @@ package mocks
 
 import (
 	"fmt"
-	"github.com/cloudfoundry/stack-auditor/cf"
 	"io/ioutil"
 	"path/filepath"
+
+	"github.com/cloudfoundry/stack-auditor/cf"
 
 	"code.cloudfoundry.org/cli/plugin/models"
 	"github.com/golang/mock/gomock"
@@ -93,7 +94,7 @@ func SetCurrentOrgAndSpace(mockConnection *MockCliConnection, org string, space 
 }
 
 func fileToString(fileName string) (string, error) {
-	path, err := filepath.Abs(filepath.Join("..", "integration", "testdata", fileName))
+	path, err := filepath.Abs(filepath.Join("..", "testdata", fileName))
 	if err != nil {
 		return "", err
 	}

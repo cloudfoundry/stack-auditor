@@ -21,9 +21,11 @@ type StackAuditor struct {
 }
 
 const (
-	AuditStackCmd  = "audit-stack"
-	ChangeStackCmd = "change-stack"
-	DeleteStackCmd = "delete-stack"
+	AuditStackCmd    = "audit-stack"
+	ChangeStackCmd   = "change-stack"
+	DeleteStackCmd   = "delete-stack"
+	ChangeStackUsage = "Usage: cf change-stack <app> <stack> [--v3]"
+	V3Flag           = "--v3"
 )
 
 func main() {
@@ -72,9 +74,14 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		fmt.Println(info)
 
 	case ChangeStackCmd:
-		if len(args) != 3 {
-			log.Fatal("Incorrect number of arguments provided - Usage: cf change-stack <app> <stack>\n")
+		if len(args) != 3 && len(args) != 4 {
+			log.Fatalf("Incorrect number of arguments provided - %s\n", ChangeStackUsage)
 		}
+		if len(args) > 3 && args[3] != V3Flag {
+			log.Fatalf("Unknown flag: %s - %s\n", args[3], ChangeStackUsage)
+		}
+
+		v3Flag := len(args) > 3 && (args[3] == V3Flag)
 
 		c := changer.Changer{
 			CF: cf.CF{
@@ -82,7 +89,7 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 			},
 		}
 
-		info, err := c.ChangeStack(args[1], args[2])
+		info, err := c.ChangeStack(args[1], args[2], v3Flag)
 		if err != nil {
 			log.Fatalf("error talking to cf: %v\n", err)
 		}
