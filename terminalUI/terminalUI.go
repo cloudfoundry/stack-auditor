@@ -1,4 +1,4 @@
-package TerminalUI
+package terminalUI
 
 import (
 	"bufio"

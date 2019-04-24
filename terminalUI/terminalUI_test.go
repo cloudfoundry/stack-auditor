@@ -1,12 +1,13 @@
-package TerminalUI
+package terminalUI
 
 import (
 	"bufio"
 	"bytes"
+	"testing"
+
 	. "github.com/onsi/gomega"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
-	"testing"
 )
 
 func TestUnitTerminalUI(t *testing.T) {

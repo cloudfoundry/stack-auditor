@@ -6,7 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudfoundry/stack-auditor/TerminalUI"
+	"github.com/cloudfoundry/stack-auditor/terminalUI"
+
 	"github.com/cloudfoundry/stack-auditor/cf"
 	"github.com/cloudfoundry/stack-auditor/changer"
 	"github.com/cloudfoundry/stack-auditor/deleter"
@@ -17,7 +18,7 @@ import (
 )
 
 type StackAuditor struct {
-	UI TerminalUI.UIController
+	UI terminalUI.UIController
 }
 
 const (
@@ -30,7 +31,7 @@ const (
 
 func main() {
 	stackAuditor := StackAuditor{
-		UI: TerminalUI.NewUi(),
+		UI: terminalUI.NewUi(),
 	}
 	plugin.Start(&stackAuditor)
 }
