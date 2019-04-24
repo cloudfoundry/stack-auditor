@@ -1,7 +1,6 @@
 package cf
 
 import (
-	"code.cloudfoundry.org/cli/cf/errors"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -144,23 +143,35 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 	return allApps, nil
 }
 
-func (cf *CF) GetAppInfo(appName, spaceGuid string) (appGuid, appState, appStack string, err error) {
+func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
+	var apps resources.V3AppsJSON
+	var app resources.V3App
 
-	apps, err := cf.GetAllApps()
+	endpoint := fmt.Sprintf("/v3/apps?names=%s", appName)
+	appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", endpoint)
+	if err != nil {
+		return app, err
+	}
+
+	if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
+		return app, fmt.Errorf("error unmarshaling apps json: %v", err)
+	}
+	if len(apps.Apps) == 0 {
+		return app, fmt.Errorf("no app found with name %s", appName)
+	}
+
+	app = apps.Apps[0]
+
+	return app, nil
+}
+
+func (cf *CF) GetAppInfo(appName string) (appGuid, appState, appStack string, err error) {
+
+	app, err := cf.GetAppByName(appName)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	for _, appsJSON := range apps {
-		for _, app := range appsJSON.Apps {
-			curApp := app.Name
-			curSpace := app.Relationships.Space.Data.GUID
-
-			if curSpace == spaceGuid && curApp == appName {
-				return app.GUID, app.State, app.Lifecycle.Data.Stack, nil
-			}
-		}
-	}
-	return "", "", "", errors.New("application could not be found")
+	return app.GUID, app.State, app.Lifecycle.Data.Stack, nil
 
 }

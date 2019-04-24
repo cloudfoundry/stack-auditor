@@ -1,0 +1,17 @@
+{
+  "pagination": {
+    "total_results": 2,
+    "total_pages": 1,
+    "first": {
+      "href": "some-link"
+    },
+    "last": {
+      "href": "some-link"
+    },
+    "next": null,
+    "previous": null
+  },
+  "resources": [
+
+  ]
+}

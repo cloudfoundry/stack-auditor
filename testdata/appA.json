@@ -1,0 +1,76 @@
+{
+  "pagination": {
+    "total_results": 2,
+    "total_pages": 1,
+    "first": {
+      "href": "some-link"
+    },
+    "last": {
+      "href": "some-link"
+    },
+    "next": null,
+    "previous": null
+  },
+  "resources": [
+    {
+      "guid": "appAGuid",
+      "name": "appA",
+      "state": "STARTED",
+      "created_at": "some-creation-time",
+      "updated_at": "some-update-time",
+      "lifecycle": {
+        "type": "buildpack",
+        "data": {
+          "buildpacks": [
+            "some-buildpack"
+          ],
+          "stack": "stackA"
+        }
+      },
+      "relationships": {
+        "space": {
+          "data": {
+            "guid": "commonSpaceGuid"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "some-link"
+        },
+        "environment_variables": {
+          "href": "some-link"
+        },
+        "space": {
+          "href": "some-link"
+        },
+        "processes": {
+          "href": "some-link"
+        },
+        "route_mappings": {
+          "href": "some-link"
+        },
+        "packages": {
+          "href": "some-link"
+        },
+        "current_droplet": {
+          "href": "some-link"
+        },
+        "droplets": {
+          "href": "some-link"
+        },
+        "tasks": {
+          "href": "some-link"
+        },
+        "start": {
+          "href": "some-start-link",
+          "method": "POST"
+        },
+        "stop": {
+          "href": "some-stop-link",
+          "method": "POST"
+        }
+      }
+    }
+  ]
+}

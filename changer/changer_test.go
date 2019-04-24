@@ -122,7 +122,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 		it("returns an error when an app can't be found", func() {
 			fakeApp := "appC"
 			_, err := c.ChangeStack(fakeApp, StackAName, false)
-			Expect(err).To(MatchError("application could not be found"))
+			Expect(err).To(MatchError("no app found with name " + fakeApp))
 		})
 	})
 }

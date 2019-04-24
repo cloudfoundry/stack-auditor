@@ -31,12 +31,7 @@ type Changer struct {
 func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, error) {
 	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
 
-	curSpace, err := c.CF.Conn.GetCurrentSpace()
-	if err != nil {
-		return "", err
-	}
-
-	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName, curSpace.Guid)
+	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName)
 	if err != nil {
 		return "", err
 	}
