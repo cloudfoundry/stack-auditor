@@ -29,6 +29,8 @@ type Changer struct {
 }
 
 func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, error) {
+	//This is temporary while we flush out the v3 logic
+	v3Flag = false
 	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
 
 	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName)
