@@ -67,33 +67,33 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("with zero downtime", func() {
-			it("makes a call to the v3 endpoint", func() {
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v3/apps/"+AppBGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"}}}`).Return(
-					[]string{}, nil)
-				result, err := c.ChangeStack(AppBName, StackAName, true)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppBName, StackAName)))
-			})
-
-			it("returns an error when v3 is not supported", func() {
-				errorString := `{
-   "errors": [
-      {
-         "detail": "Unknown request",
-         "title": "CF-NotFound",
-         "code": 10000
-      }
-   ]
-}`
-
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v3/apps/"+AppBGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"}}}`).Return(
-					[]string{errorString}, nil)
-				_, err := c.ChangeStack(AppBName, StackAName, true)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring(changer.ChangeStackV3ErrorMsg))
-			})
-		})
+		//		when("with zero downtime", func() {
+		//			it("makes a call to the v3 endpoint", func() {
+		//				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v3/apps/"+AppBGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"}}}`).Return(
+		//					[]string{}, nil)
+		//				result, err := c.ChangeStack(AppBName, StackAName, true)
+		//				Expect(err).NotTo(HaveOccurred())
+		//				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppBName, StackAName)))
+		//			})
+		//
+		//			it("returns an error when v3 is not supported", func() {
+		//				errorString := `{
+		//   "errors": [
+		//      {
+		//         "detail": "Unknown request",
+		//         "title": "CF-NotFound",
+		//         "code": 10000
+		//      }
+		//   ]
+		//}`
+		//
+		//				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v3/apps/"+AppBGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"}}}`).Return(
+		//					[]string{errorString}, nil)
+		//				_, err := c.ChangeStack(AppBName, StackAName, true)
+		//				Expect(err).To(HaveOccurred())
+		//				Expect(err.Error()).To(ContainSubstring(changer.ChangeStackV3ErrorMsg))
+		//			})
+		//		})
 
 		when("the app is initially started", func() {
 			it("starts the app after changing stacks", func() {
