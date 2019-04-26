@@ -14,8 +14,8 @@ Prerequisite: Have a working golang environment with correctly set
 `GOPATH`.
 
 ```sh
-go get go get github.com/cloudfoundry/stack-auditor
-cd $GOPATH/src/go get github.com/cloudfoundry/stack-auditor
+go get github.com/cloudfoundry/stack-auditor
+cd $GOPATH/src/github.com/cloudfoundry/stack-auditor
 ./scripts/build.sh
 
 ```
