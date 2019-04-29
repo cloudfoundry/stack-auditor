@@ -24,6 +24,7 @@ const (
 	StackBName = "stackB"
 	StackAGuid = "stackAGuid"
 	StackBGuid = "stackBGuid"
+	NotAnApp   = "notAnApp"
 )
 
 func TestUnitChanger(t *testing.T) {
@@ -106,6 +107,13 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
 
+			})
+		})
+
+		when("changing the stack of an app on the v3 endpoint that doesn't exist", func() {
+			it("returns the error from the output of the curl command", func() {
+				_, err := c.ChangeStack(NotAnApp, StackBName, false)
+				Expect(err).To(MatchError("Some V3 error detail, Another V3 error detail"))
 			})
 		})
 

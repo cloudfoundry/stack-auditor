@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudfoundry/stack-auditor/cf"
-
 	"github.com/cloudfoundry/libbuildpack/cutlass"
 
 	"github.com/sclevine/spec/report"
@@ -73,8 +71,9 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		})
 	})
 
-	when.Pend("Audit Stack", func() {
-		const appCount = cf.V3ResultsPerPage / 10
+	when("Audit Stack", func() {
+		//const appCount = cf.V3ResultsPerPage + 1 TODO:// Fix this to test multi-page results
+		const appCount = 10
 		var (
 			apps               [appCount]*cutlass.App
 			spaceName, orgName string

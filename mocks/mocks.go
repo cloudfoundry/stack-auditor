@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 
@@ -23,52 +24,52 @@ var (
 	AppAName   = "appA"
 	AppBName   = "appB"
 	AppCName   = "appC"
+	NotAnApp   = "notAnApp"
 )
 
 func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
-	apps, err := fileToString("apps.json")
+	apps, err := FileToString("apps.json")
 	Expect(err).ToNot(HaveOccurred())
 
-	appA, err := fileToString("appA.json")
+	appA, err := FileToString("appA.json")
 	Expect(err).ToNot(HaveOccurred())
 
-	appB, err := fileToString("appB.json")
+	appB, err := FileToString("appB.json")
 	Expect(err).ToNot(HaveOccurred())
 
-	appC, err := fileToString("appC.json")
+	appC, err := FileToString("appC.json")
 	Expect(err).ToNot(HaveOccurred())
 
-	spaces, err := fileToString("spaces.json")
+	spaces, err := FileToString("spaces.json")
 	Expect(err).ToNot(HaveOccurred())
 
-	buildpacks, err := fileToString("buildpacks.json")
+	buildpacks, err := FileToString("buildpacks.json")
+	Expect(err).ToNot(HaveOccurred())
+
+	errorV3, err := FileToString("errorV3.json")
 	Expect(err).ToNot(HaveOccurred())
 
 	mockConnection := NewMockCliConnection(mockCtrl)
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?per_page=%d", cf.V3ResultsPerPage)).Return(
-		[]string{
-			apps,
-		}, nil).AnyTimes()
+		apps, nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppAName)).Return(
-		[]string{
-			appA,
-		}, nil).AnyTimes()
+		appA,
+		nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppBName)).Return(
-		[]string{
-			appB,
-		}, nil).AnyTimes()
+		appB,
+		nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppCName)).Return(
-		[]string{
-			appC,
-		}, nil).AnyTimes()
+		appC,
+		nil).AnyTimes()
+
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", NotAnApp)).Return(errorV3, nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/spaces?results-per-page=%d", cf.V2ResultsPerPage)).Return(
-		[]string{
-			spaces,
-		}, nil).AnyTimes()
+		spaces,
+		nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("stack", "--guid", StackAName).Return(
 		[]string{
@@ -89,18 +90,17 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 		[]string{}, nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/buildpacks?results-per-page=%d", cf.V2ResultsPerPage)).Return(
-		[]string{
-			buildpacks,
-		}, nil).AnyTimes()
+		buildpacks,
+		nil).AnyTimes()
 
 	mockConnection.EXPECT().GetOrgs().Return(
 		[]plugin_models.GetOrgs_Model{
-			plugin_models.GetOrgs_Model{
+			{
 				Guid: "commonOrgGuid",
 				Name: "commonOrg",
 			},
 
-			plugin_models.GetOrgs_Model{
+			{
 				Guid: "orgBGuid",
 				Name: "orgB",
 			},
@@ -122,16 +122,17 @@ func SetCurrentOrgAndSpace(mockConnection *MockCliConnection, org string, space 
 	}, nil).AnyTimes()
 }
 
-func fileToString(fileName string) (string, error) {
+// TODO move this somewhere more appropriate
+func FileToString(fileName string) ([]string, error) {
 	path, err := filepath.Abs(filepath.Join("..", "testdata", fileName))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(buf), nil
+	return strings.Split(string(buf), "\n"), nil
 }

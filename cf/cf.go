@@ -2,6 +2,7 @@ package cf
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -61,7 +62,8 @@ func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
 	var allBuildpacks []resources.BuildpacksJSON
 	nextURL := fmt.Sprintf("/v2/buildpacks?results-per-page=%d", V2ResultsPerPage)
 	for nextURL != "" {
-		buildpackJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
+		buildpackJSON, err := cf.CFCurl(nextURL)
+
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +109,7 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 	var allSpaces resources.Spaces
 	nextSpaceURL := fmt.Sprintf("/v2/spaces?results-per-page=%d", V2ResultsPerPage)
 	for nextSpaceURL != "" {
-		spacesJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextSpaceURL)
+		spacesJSON, err := cf.CFCurl(nextSpaceURL)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +129,7 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 	var allApps []resources.V3AppsJSON
 	nextURL := fmt.Sprintf("/v3/apps?per_page=%d", V3ResultsPerPage)
 	for nextURL != "" {
-		appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", nextURL)
+		appJSON, err := cf.CFCurl(nextURL)
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +150,7 @@ func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
 	var app resources.V3App
 
 	endpoint := fmt.Sprintf("/v3/apps?names=%s", appName)
-	appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", endpoint)
+	appJSON, err := cf.CFCurl(endpoint)
 	if err != nil {
 		return app, err
 	}
@@ -174,4 +176,54 @@ func (cf *CF) GetAppInfo(appName string) (appGuid, appState, appStack string, er
 
 	return app.GUID, app.State, app.Lifecycle.Data.Stack, nil
 
+}
+
+func (cf *CF) CFCurl(args ...string) ([]string, error) {
+	curlArgs := append([]string{"curl"}, args...)
+	output, err := cf.Conn.CliCommandWithoutTerminalOutput(curlArgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := checkV2Error(output); err != nil {
+		return nil, err
+	}
+
+	if err := checkV3Error(output); err != nil {
+		return nil, err
+	}
+
+	return output, nil
+}
+
+func checkV2Error(lines []string) error {
+	output := strings.Join(lines, "\n")
+	var errorsJSON resources.V2ErrorJSON
+
+	err := json.Unmarshal([]byte(output), &errorsJSON)
+
+	if err != nil || errorsJSON.Description == "" {
+		return nil
+	}
+
+	return errors.New(errorsJSON.Description)
+}
+
+func checkV3Error(lines []string) error {
+	output := strings.Join(lines, "\n")
+	var errorsJSON resources.V3ErrorJSON
+
+	err := json.Unmarshal([]byte(output), &errorsJSON)
+
+	if err != nil || errorsJSON.Errors == nil {
+		return nil
+
+	}
+
+	errorDetails := make([]string, 0)
+	for _, e := range errorsJSON.Errors {
+		errorDetails = append(errorDetails, e.Detail)
+	}
+
+	return errors.New(strings.Join(errorDetails, ", "))
 }

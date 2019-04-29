@@ -2,9 +2,6 @@ package changer
 
 import (
 	"fmt"
-	"strings"
-
-	"github.com/cloudfoundry/stack-auditor/utils"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 )
@@ -13,7 +10,6 @@ const (
 	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n\n"
 	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
 	ChangeStackV3ErrorMsg      = "the --v3 flag is not compatible with your foundation. Please remove the flag and rerun"
-	CFNotFound                 = "CF-NotFound"
 )
 
 type RequestData struct {
@@ -63,21 +59,16 @@ func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, er
 }
 
 func (c *Changer) changeStackV3(appGuid, stackName string) error {
-	out, err := c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"}}}`)
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"}}}`)
 	if err != nil {
 		return err
-	}
-
-	notFoundError := utils.CheckOutputForErrorMessage(strings.Join(out, ""), CFNotFound)
-	if notFoundError {
-		return fmt.Errorf(ChangeStackV3ErrorMsg)
 	}
 
 	return nil
 }
 
 func (c *Changer) changeStackV2(appName, appGuid, newStackGuid, appState string) error {
-	_, err := c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+newStackGuid+`","state":"STOPPED"}`)
+	_, err := c.CF.CFCurl("/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+newStackGuid+`","state":"STOPPED"}`)
 	if err != nil {
 		return err
 	}
