@@ -71,7 +71,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		})
 	})
 
-	when("Audit Stack", func() {
+	when.Pend("Audit Stack", func() {
 		//const appCount = cf.V3ResultsPerPage + 1 TODO:// Fix this to test multi-page results
 		const appCount = 10
 		var (
