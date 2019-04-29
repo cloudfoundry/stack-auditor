@@ -5,9 +5,10 @@
 package mocks
 
 import (
+	reflect "reflect"
+
 	models "code.cloudfoundry.org/cli/plugin/models"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
 // MockCliConnection is a mock of CliConnection interface

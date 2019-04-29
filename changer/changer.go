@@ -77,7 +77,8 @@ func (c *Changer) changeStackV3(appGuid, stackName string) error {
 }
 
 func (c *Changer) changeStackV2(appName, appGuid, newStackGuid, appState string) error {
-	_, err := c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+newStackGuid+`","state":"STOPPED"}`)
+
+	_, err := c.CF.Conn.CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+newStackGuid+`","state":"STOPPED"}`) // TODO don't ignore output
 	if err != nil {
 		return err
 	}

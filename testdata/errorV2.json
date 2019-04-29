@@ -1,0 +1,5 @@
+{
+  "description": "Some error description",
+  "error_code": "SomeErrorCode",
+  "code": 1
+}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cloudfoundry/stack-auditor/utils"
+
 	"code.cloudfoundry.org/cli/plugin"
 	"github.com/cloudfoundry/stack-auditor/resources"
 )
@@ -132,6 +134,11 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 			return nil, err
 		}
 
+		//err = utils.CheckV3Error(appJSON)
+		//if err != nil {
+		//	return nil, err
+		//}
+
 		var apps resources.V3AppsJSON
 
 		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
@@ -149,6 +156,11 @@ func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
 
 	endpoint := fmt.Sprintf("/v3/apps?names=%s", appName)
 	appJSON, err := cf.Conn.CliCommandWithoutTerminalOutput("curl", endpoint)
+	if err != nil {
+		return app, err
+	}
+
+	err = utils.CheckV3Error(appJSON)
 	if err != nil {
 		return app, err
 	}

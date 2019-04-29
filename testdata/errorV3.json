@@ -1,0 +1,14 @@
+{
+  "errors": [
+    {
+      "detail": "Some V3 error detail",
+      "title": "SomeV3ErrorTitle",
+      "code": 1
+    },
+    {
+      "detail": "Another V3 error detail",
+      "title": "AnotherV3ErrorTitle",
+      "code": 1
+    }
+  ]
+}
