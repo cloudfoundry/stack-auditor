@@ -96,18 +96,46 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 		//			})
 		//		})
 
-		when("the app is initially started", func() {
+		when.Focus("when you have zero down time endpoint available", func() {
 			it("starts the app after changing stacks", func() {
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+AppAGuid, "-X", "PUT", `-d={"stack_guid":"`+StackBGuid+`","state":"STOPPED"}`).Return(
-					[]string{}, nil)
 
-				mockConnection.EXPECT().CliCommand("start", AppAName)
+				// Load return strings
+				v3AppJson, err := mocks.FileToString("appV3.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				v3DropletJson, err := mocks.FileToString("appV3Droplet.json")
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"}}}`,
+				).Return(v3AppJson, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid+"/droplets/current",
+					"-X",
+					"GET",
+				).Return(v3DropletJson, nil)
+
+				mockConnection.EXPECT().CliCommand("v3-stage test-app", "--package-guid", "123")
+
+				mockConnection.EXPECT().CliCommand("v3-set-droplet", AppAName, "--droplet-guid", "123")
+
+				mockConnection.EXPECT().CliCommand("v3-zdt-restart", AppAName)
 
 				result, err := c.ChangeStack(AppAName, StackBName, false)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
 
 			})
+
+		})
+
+		when("when you do not have zero down time endpoint available", func() {
+
 		})
 
 		when("changing the stack of an app on the v3 endpoint that doesn't exist", func() {
