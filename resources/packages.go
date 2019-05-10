@@ -14,16 +14,18 @@ type PackagerJSON struct {
 		Next     interface{} `json:"next"`
 		Previous interface{} `json:"previous"`
 	} `json:"pagination"`
-	Resources []struct {
-		GUID string `json:"guid"`
-		Type string `json:"type"`
-		Data struct {
-			Error    interface{} `json:"error"`
-			Checksum struct {
-				Type  string `json:"type"`
-				Value string `json:"value"`
-			} `json:"checksum"`
-		} `json:"data"`
-		State string `json:"state"`
-	} `json:"resources"`
+	Resources []Package `json:"resources"`
+}
+
+type Package struct {
+	GUID string `json:"guid"`
+	Type string `json:"type"`
+	Data struct {
+		Error    interface{} `json:"error"`
+		Checksum struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+		} `json:"checksum"`
+	} `json:"data"`
+	State string `json:"state"`
 }

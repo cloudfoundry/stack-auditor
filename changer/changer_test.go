@@ -27,15 +27,17 @@ const (
 	NotAnApp   = "notAnApp"
 )
 
+//go:generate mockgen -source=changer.go -destination=mocks_test.go -package=changer_test
+
 func TestUnitChanger(t *testing.T) {
 	spec.Run(t, "Changer", testChanger, spec.Report(report.Terminal{}))
 }
 
 func testChanger(t *testing.T, when spec.G, it spec.S) {
-
 	var (
 		mockCtrl       *gomock.Controller
 		mockConnection *mocks.MockCliConnection
+		mockRunner     *MockRunner
 		c              changer.Changer
 	)
 
@@ -44,8 +46,10 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 		mockCtrl = gomock.NewController(t)
 		mockConnection = mocks.SetupMockCliConnection(mockCtrl)
+		mockRunner = NewMockRunner(mockCtrl)
 
 		c = changer.Changer{
+			Runner: mockRunner,
 			CF: cf.CF{
 				Conn: mockConnection,
 			},
@@ -100,10 +104,8 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			it("starts the app after changing stacks", func() {
 
 				// Load return strings
-				v3AppJson, err := mocks.FileToString("appV3.json")
+				v3AppJSON, err := mocks.FileToString("appV3.json")
 				Expect(err).ToNot(HaveOccurred())
-
-				v3DropletJson, err := mocks.FileToString("appV3Droplet.json")
 
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"curl",
@@ -111,20 +113,30 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 					"-X",
 					"PATCH",
 					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"}}}`,
-				).Return(v3AppJson, nil)
+				).Return(v3AppJSON, nil)
 
+				v3PackageJSON := []string{""}
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"curl",
-					"/v3/apps/"+AppAGuid+"/droplets/current",
+					"/v3/apps/"+AppAGuid+"/packages",
 					"-X",
 					"GET",
-				).Return(v3DropletJson, nil)
+				).Return(v3PackageJSON, nil)
 
 				mockConnection.EXPECT().CliCommand("v3-stage test-app", "--package-guid", "123")
 
-				mockConnection.EXPECT().CliCommand("v3-set-droplet", AppAName, "--droplet-guid", "123")
+				v3DropletJSON, err := mocks.FileToString("appV3Droplets.json")
 
-				mockConnection.EXPECT().CliCommand("v3-zdt-restart", AppAName)
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid+"/droplets",
+					"-X",
+					"GET",
+				).Return(v3DropletJSON, nil)
+
+				mockRunner.EXPECT().Run("cf", ".", false, "v3-set-droplet", AppAName, "--droplet-guid", "123")
+
+				mockRunner.EXPECT().Run("cf", ".", false, "v3-zdt-restart", AppAName)
 
 				result, err := c.ChangeStack(AppAName, StackBName, false)
 				Expect(err).NotTo(HaveOccurred())

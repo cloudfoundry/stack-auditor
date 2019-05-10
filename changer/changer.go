@@ -3,9 +3,9 @@ package changer
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"os/exec"
 	"strings"
+
+	"github.com/blang/semver"
 
 	"github.com/cloudfoundry/stack-auditor/resources"
 
@@ -17,6 +17,7 @@ const (
 	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
 	ChangeStackV3ErrorMsg      = "the --v3 flag is not compatible with your foundation. Please remove the flag and rerun"
 	AppStackAssociationError   = "application is already associated with stack %s"
+	V3ZDTCapiLimit             = "1.76.3"
 )
 
 type RequestData struct {
@@ -28,7 +29,14 @@ type RequestData struct {
 }
 
 type Changer struct {
-	CF cf.CF
+	CF     cf.CF
+	Runner Runner
+}
+
+type Runner interface {
+	Run(bin, dir string, quiet bool, args ...string) error
+	RunWithOutput(bin, dir string, quiet bool, args ...string) (string, error)
+	SetEnv(variableName string, path string) error
 }
 
 func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, error) {
@@ -61,16 +69,7 @@ func (c *Changer) changeStack(appGuid, stackName, appState string) error {
 		return err
 	}
 
-	var packageUrl *url.URL
-	packageUrl, err = url.Parse(app.Links.Packages.Href)
-	if err != nil {
-		return err
-	}
-
-	//TODO: re write this with static v3 endpoint: /v3/apps/"+appGuid+"/packages
-	packagesPathForCf := strings.TrimPrefix(packageUrl.String(), fmt.Sprintf("%s://%s", packageUrl.Scheme, packageUrl.Host))
-
-	packageResponse, err := c.CF.CFCurl(packagesPathForCf, "-X", "GET")
+	packageResponse, err := c.CF.CFCurl(fmt.Sprintf("/v3/apps/%s/packages", appGuid), "-X", "GET")
 	if err != nil {
 		return err
 	}
@@ -86,28 +85,25 @@ func (c *Changer) changeStack(appGuid, stackName, appState string) error {
 
 	fmt.Println("Packager GUID: ", packagerJSON.Resources[0].GUID)
 
-	cmd := exec.Command("cf", "v3-stage", app.Name, "--package-guid", packagerJSON.Resources[0].GUID)
 	fmt.Printf("Staging %s...\n", app.Name)
-	if err := cmd.Run(); err != nil {
+	if err := c.Runner.Run("cf", ".", false, "v3-stage", app.Name, "--package-guid", packagerJSON.Resources[0].GUID); err != nil {
 		return err
 	}
 
-	var dropletJSON resources.DropletJSON
+	var dropletsJSON resources.DropletListJSON
 
-	dropletResponse, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/droplets/current", "-X", "GET")
+	dropletResponse, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/droplets", "-X", "GET")
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal([]byte(strings.Join(dropletResponse, "\n")), &dropletJSON); err != nil {
+	if err := json.Unmarshal([]byte(strings.Join(dropletResponse, "\n")), &dropletsJSON); err != nil {
 		return err
 	}
 
-	fmt.Println()
-	cmd = exec.Command("cf", "v3-set-droplet", app.Name, "--droplet-guid", dropletJSON.GUID)
-	fmt.Printf("Setting droplet for %s...\n", app.Name)
-	if err := cmd.Run(); err != nil {
-		fmt.Println("ERROR HERE: ", err.Error())
+	dropletGuid := dropletsJSON.Resources[len(dropletsJSON.Resources)-1].GUID
+	fmt.Printf("Setting droplet for %s to %s...\n", app.Name, dropletGuid)
+	if err := c.Runner.Run("cf", ".", false, "v3-set-droplet", app.Name, "--droplet-guid", dropletGuid); err != nil {
 		return err
 	}
 
@@ -115,23 +111,39 @@ func (c *Changer) changeStack(appGuid, stackName, appState string) error {
 }
 
 func (c *Changer) restart(appName string) error {
-	if !supportV3ZeroDowntime() {
-		// cf restart test-app ---> TODO this is not zero downtime
+	ok, err := c.supportV3ZeroDowntime()
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		fmt.Printf("Restarting %s...\n", appName)
+		if err := c.Runner.Run("cf", ".", false, "restart", appName); err != nil {
+			return err
+		}
 		return nil
 	}
 
-	cmd := exec.Command("cf", "v3-zdt-restart", appName)
-	fmt.Printf("Restarting %s...\n", appName)
-	if err := cmd.Run(); err != nil {
-		fmt.Println("ERROR HERE???????????: ", err.Error())
+	fmt.Printf("Restarting %s with zero down time...\n", appName)
+	if err := c.Runner.Run("cf", ".", false, "v3-zdt-restart", appName); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func supportV3ZeroDowntime() bool {
-	return true
+func (c *Changer) supportV3ZeroDowntime() (bool, error) {
+	CAPIZDTLimitSemver, _ := semver.Parse(V3ZDTCapiLimit)
+	currentCAPIVersion, err := c.CF.Conn.ApiVersion()
+	if err != nil {
+		return false, err
+	}
+	currentCAPISemver, err := semver.Parse(currentCAPIVersion)
+	if err != nil {
+		return false, err
+	}
+
+	return currentCAPISemver.GTE(CAPIZDTLimitSemver), nil
 }
 
 func (c *Changer) changeStackV3(appGuid, stackName string) error {

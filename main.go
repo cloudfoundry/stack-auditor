@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/cloudfoundry/stack-auditor/utils"
+
 	"github.com/cloudfoundry/stack-auditor/terminalUI"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
@@ -84,10 +86,10 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 
 		v3Flag := len(args) > 3 && (args[3] == V3Flag)
 
-		c := changer.Changer{
-			CF: cf.CF{
-				Conn: cliConnection,
-			},
+		c := changer.Changer{}
+		c.Runner = utils.Command{}
+		c.CF = cf.CF{
+			Conn: cliConnection,
 		}
 
 		info, err := c.ChangeStack(args[1], args[2], v3Flag)
