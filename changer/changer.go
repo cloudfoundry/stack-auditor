@@ -3,7 +3,10 @@ package changer
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
+
+	"github.com/buger/jsonparser"
 
 	"github.com/blang/semver"
 
@@ -41,7 +44,6 @@ type Runner interface {
 
 func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, error) {
 	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
-
 	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName)
 	if err != nil {
 		return "", err
@@ -51,15 +53,114 @@ func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, er
 		return "", fmt.Errorf(AppStackAssociationError, newStack)
 	}
 
-	if err := c.changeStack(appGuid, newStack, appState); err != nil {
+	if err := c.changeStackForRizzle(appGuid, newStack, appState); err != nil {
 		return "", err
 	}
 
 	return fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack), nil
 }
 
+func (c *Changer) changeStackForRizzle(appGuid, stackName, appState string) error {
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("YARRRRRRRRRRRRR")
+
+	curDropletResp, err := c.CF.CFCurl("/v3/apps/" + appGuid + "/droplets/current")
+	if err != nil {
+		return err
+	}
+
+	packageGUID, err := parsePackageFromDroplet(curDropletResp)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("YARRRRRRRRRRRRR")
+
+	buildPostResp, err := c.CF.CFCurl("/v3/builds", "-X", "POST", `-d='{"package": {"guid": "`+packageGUID+`"} }'`)
+	if err != nil {
+		return err
+	}
+
+	buildGUID, err := parseBuildGUID(buildPostResp)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("YARRRRRRRRRRRRR")
+
+	//buildGetResp, err := c.CF.CFCurl("/v3/builds/" + buildGUID)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//fmt.Println("YARRRRRRRRRRRRR")
+	//fmt.Println("build GET response: ", buildGetResp)
+	//
+	//newStackDropletGUID, err := parseNewStackDropletGUID(buildGetResp)
+	//if err != nil {
+	//	return err
+	//}
+
+	newStackDropletGUID, err := c.pollDropletBuilding(buildGUID)
+
+	fmt.Println("YARRRRRRRRRRRRR")
+
+	_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+newStackDropletGUID+`" } }'`)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("YARRRRRRRRRRRRR")
+
+	//_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
+	return err
+}
+
+func (c *Changer) pollDropletBuilding(buildGUID string) (string, error) {
+	dropletGUID := ""
+	for dropletGUID == "" {
+		buildGetResp, err := c.CF.CFCurl("/v3/builds/" + buildGUID)
+		if err != nil {
+			return "", err
+		}
+		dropletGUID, _ = parseNewStackDropletGUID(buildGetResp)
+	}
+	return dropletGUID, nil
+}
+
+func parsePackageFromDroplet(curDropletResp []string) (string, error) {
+	packageURI, err := jsonparser.GetString([]byte(strings.Join(curDropletResp, "\n")), "links", "package", "href")
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Base(packageURI), nil
+}
+
+func parseBuildGUID(buildPostResp []string) (string, error) {
+	buildGUID, err := jsonparser.GetString([]byte(strings.Join(buildPostResp, "\n")), "guid")
+	if err != nil {
+		return "", err
+	}
+
+	return buildGUID, nil
+}
+
+func parseNewStackDropletGUID(buildGetResp []string) (string, error) {
+	dropletGUID, err := jsonparser.GetString([]byte(strings.Join(buildGetResp, "\n")), "droplet", "guid")
+	if err != nil {
+		return "", err
+	}
+
+	return dropletGUID, nil
+}
+
 func (c *Changer) changeStack(appGuid, stackName, appState string) error {
-	response, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"}}}`)
+	response, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
 	if err != nil {
 		return err
 	}

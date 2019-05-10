@@ -100,7 +100,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 		//			})
 		//		})
 
-		when.Focus("when you have zero down time endpoint available", func() {
+		when("when you have zero down time endpoint available", func() {
 			it("starts the app after changing stacks", func() {
 
 				// Load return strings
@@ -147,7 +147,62 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 		})
 
 		when("when you do not have zero down time endpoint available", func() {
+			it("starts the app after changing stacks", func() {
 
+				//mockConnection = mocks.SetupChangerMockCliConnection(mockCtrl)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"} } }`,
+				).Return([]string{}, nil)
+
+				appADroplet, err := mocks.FileToString("appV3Droplet.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid+"/droplets/current",
+				).Return(appADroplet, nil)
+
+				appABuildPost, err := mocks.FileToString("appAV3BuildPost.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds",
+					"-X", "POST",
+					`-d='{"package": {"guid": "og-package-guid"} }'`,
+				).Return(appABuildPost, nil)
+
+				appABuildGet, err := mocks.FileToString("appAV3BuildGet.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds/some-build-guid",
+				).Return(appABuildGet, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/relationships/current_droplet",
+					"-X", "PATCH",
+					`-d='{ "data": { "guid": "some-droplet-guid" } }'`,
+				).Return([]string{}, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/actions/restart",
+					"-X", "POST",
+				).Return([]string{}, nil)
+
+				result, err := c.ChangeStack(AppAName, StackBName, false)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
+
+			})
 		})
 
 		when("changing the stack of an app on the v3 endpoint that doesn't exist", func() {

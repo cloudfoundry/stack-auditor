@@ -27,6 +27,19 @@ var (
 	NotAnApp   = "notAnApp"
 )
 
+//func SetupChangerMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
+//	mockConnection := NewMockCliConnection(mockCtrl)
+//
+//	appA, err := FileToString("appA.json")
+//	Expect(err).ToNot(HaveOccurred())
+//
+//	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppAName)).Return(
+//		appA,
+//		nil).AnyTimes()
+//
+//	return mockConnection
+//}
+
 func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	apps, err := FileToString("apps.json")
 	Expect(err).ToNot(HaveOccurred())

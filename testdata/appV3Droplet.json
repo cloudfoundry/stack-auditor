@@ -8,17 +8,17 @@
   },
   "checksum": {
     "type": "sha256",
-    "value": "396a54d9c5e6701c59efdabb75262fe99476b5858eb03565a4584925210f4c01"
+    "value": "awesome-shasum-checksum"
   },
   "buildpacks": [
     {
-      "name": "nodejs_buildpack",
-      "detect_output": "nodejs",
-      "buildpack_name": "nodejs",
-      "version": "1.6.45"
+      "name": "some-buildpack",
+      "detect_output": "out",
+      "buildpack_name": "some",
+      "version": "0.0.1"
     }
   ],
-  "stack": "cflinuxfs3",
+  "stack": "stackA",
   "image": null,
   "execution_metadata": "",
   "process_types": {
@@ -31,13 +31,13 @@
       "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/droplets/appADropletA"
     },
     "package": {
-      "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/packages/dbb39010-f487-4ea1-a27b-611e8014c297"
+      "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/packages/og-package-guid"
     },
     "app": {
-      "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/apps/d7462fb4-78ba-4cfe-8b0f-0907e9aac23f"
+      "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/apps/appAGuid"
     },
     "assign_current_droplet": {
-      "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/apps/d7462fb4-78ba-4cfe-8b0f-0907e9aac23f/relationships/current_droplet",
+      "href": "https://api.verge.buildpacks-gcp.ci.cf-app.com/v3/apps/appAGuid/relationships/current_droplet",
       "method": "PATCH"
     }
   },
