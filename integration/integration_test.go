@@ -116,9 +116,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(contents).To(ContainSubstring(oldStack))
 
-				body, err := app.GetBody("/")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(body).To(ContainSubstring("Hello World!"))
+				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
+				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring("Hello World!"))
 			})
 		})
 	})

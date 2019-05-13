@@ -101,6 +101,7 @@ func (c *Changer) assignDesiredStack(appGuid, stackName string) error {
 	return err
 }
 
+// TODO take in a duration for timeout maybe?
 func (c *Changer) rebuildApp(appGuid string) error {
 	curDropletResp, err := c.CF.CFCurl("/v3/apps/" + appGuid + "/droplets/current")
 	if err != nil {
