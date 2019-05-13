@@ -3,17 +3,15 @@ package changer
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/buger/jsonparser"
-
 	"github.com/blang/semver"
-
-	"github.com/cloudfoundry/stack-auditor/resources"
-
+	"github.com/buger/jsonparser"
 	"github.com/cloudfoundry/stack-auditor/cf"
+	"github.com/cloudfoundry/stack-auditor/resources"
 )
 
 const (
@@ -23,6 +21,7 @@ const (
 	AppStackAssociationError   = "application is already associated with stack %s"
 	V3ZDTCapiLimit             = "1.76.3"
 	RestoringStateMsg          = "Restoring prior application state: %s"
+	RecoveryMsg                = "%s failed to stage on: %s. Restaging on existing stack: %s\n"
 )
 
 type RequestData struct {
@@ -55,19 +54,54 @@ func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, er
 		return "", fmt.Errorf(AppStackAssociationError, newStack)
 	}
 
-	if err := c.changeStackForRizzle(appGuid, newStack, appState); err != nil {
-		return "", err
+	if err := c.changeStack(appGuid, newStack, appState); err != nil {
+		fmt.Fprintf(os.Stderr, RecoveryMsg, appName, newStack, appStack)
+
+		if err := c.recover(appGuid, appState, appStack); err != nil {
+			fmt.Fprintf(os.Stderr, "unable to recover %s", appName)
+			return "", err
+		}
+
+		return "", nil
 	}
 
 	return fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack), nil
 }
 
-func (c *Changer) changeStackForRizzle(appGuid, stackName, appInitialState string) error {
-	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
+func (c *Changer) changeStack(appGuid, stackName, appInitialState string) error {
+	err := c.assignDesiredStack(appGuid, stackName)
 	if err != nil {
 		return err
 	}
 
+	err = c.rebuildApp(appGuid)
+	if err != nil {
+		return err
+	}
+
+	return c.restoreAppState(appGuid, appInitialState)
+}
+
+func (c *Changer) restoreAppState(appGuid, appInitialState string) error {
+	if appInitialState == "STARTED" {
+		fmt.Println(fmt.Sprintf(RestoringStateMsg, "STARTED"))
+		_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println(fmt.Sprintf(RestoringStateMsg, "STOPPED"))
+	}
+
+	return nil
+}
+
+func (c *Changer) assignDesiredStack(appGuid, stackName string) error {
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
+	return err
+}
+
+func (c *Changer) rebuildApp(appGuid string) error {
 	curDropletResp, err := c.CF.CFCurl("/v3/apps/" + appGuid + "/droplets/current")
 	if err != nil {
 		return err
@@ -88,35 +122,14 @@ func (c *Changer) changeStackForRizzle(appGuid, stackName, appInitialState strin
 		return err
 	}
 
-	newStackDropletGUID, err := c.pollDropletBuilding(buildGUID)
-
-	_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+newStackDropletGUID+`" } }'`)
+	buildGetResp, err := c.waitOnAppBuild(buildGUID)
 	if err != nil {
 		return err
 	}
 
-	if appInitialState == "STARTED" {
-		fmt.Println(fmt.Sprintf(RestoringStateMsg, "STARTED"))
-		_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
-	} else {
-		fmt.Println(fmt.Sprintf(RestoringStateMsg, "STOPPED"))
-	}
-
+	newStackDropletGUID, err := parseNewStackDropletGUID(buildGetResp)
+	_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+newStackDropletGUID+`" } }'`)
 	return err
-}
-
-func (c *Changer) pollDropletBuilding(buildGUID string) (string, error) {
-	dropletGUID := ""
-	for dropletGUID == "" {
-		buildGetResp, err := c.CF.CFCurl("/v3/builds/" + buildGUID)
-		if err != nil {
-			return "", err
-		}
-		dropletGUID, _ = parseNewStackDropletGUID(buildGetResp)
-		time.Sleep(5 * time.Second)
-		fmt.Println("Waiting for build...")
-	}
-	return dropletGUID, nil
 }
 
 func parsePackageFromDroplet(curDropletResp []string) (string, error) {
@@ -137,6 +150,31 @@ func parseBuildGUID(buildPostResp []string) (string, error) {
 	return buildGUID, nil
 }
 
+func (c *Changer) waitOnAppBuild(buildGUID string) (buildGetResp []string, err error) {
+	buildState := "STAGING"
+	deadline := time.Now().Add(3 * time.Minute)
+
+	for buildState == "STAGING" && time.Now().Before(deadline) {
+		buildGetResp, err = c.CF.CFCurl("/v3/builds/" + buildGUID)
+		if err != nil {
+			return []string{}, err
+		}
+
+		buildJSON := strings.Join(buildGetResp, "\n")
+		buildState, err = jsonparser.GetString([]byte(buildJSON), "state")
+	}
+
+	if time.Now().After(deadline) {
+		return []string{}, fmt.Errorf("timed out waiting for app to build. build GUID: %s", buildGUID)
+	}
+
+	if buildState == "FAILED" {
+		return []string{}, fmt.Errorf("app build failed. build GUID: %s", buildGUID)
+	}
+
+	return buildGetResp, nil
+}
+
 func parseNewStackDropletGUID(buildGetResp []string) (string, error) {
 	dropletGUID, err := jsonparser.GetString([]byte(strings.Join(buildGetResp, "\n")), "droplet", "guid")
 	if err != nil {
@@ -146,7 +184,8 @@ func parseNewStackDropletGUID(buildGetResp []string) (string, error) {
 	return dropletGUID, nil
 }
 
-func (c *Changer) changeStack(appGuid, stackName, appState string) error {
+// TODO remove this once finished
+func (c *Changer) oldChangeStack(appGuid, stackName, appState string) error {
 	response, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
 	if err != nil {
 		return err
@@ -198,6 +237,7 @@ func (c *Changer) changeStack(appGuid, stackName, appState string) error {
 	return c.restart(app.Name)
 }
 
+// TODO update this
 func (c *Changer) restart(appName string) error {
 	ok, err := c.supportV3ZeroDowntime()
 	if err != nil {
@@ -253,5 +293,13 @@ func (c *Changer) changeStackV2(appName, appGuid, newStackGuid, appState string)
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *Changer) recover(appGuid, appInitialState, appStack string) error {
+	if err := c.changeStack(appGuid, appStack, appInitialState); err != nil {
+		return err
+	}
+
 	return nil
 }

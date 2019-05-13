@@ -51,13 +51,15 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app.Stack = oldStack
 			})
 
-			it.Focus("should change the stack", func() {
+			it("should change the stack", func() {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
+
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				output, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(output)).To(ContainSubstring("Restoring prior application state: %s", "STARTED"))
+
 				cmd = exec.Command("cf", "app", app.Name)
 				contents, err := cmd.CombinedOutput()
 				Expect(err).NotTo(HaveOccurred())
@@ -74,9 +76,10 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app.Stack = oldStack
 			})
 
-			it.Focus("it should change the stack and remain stopped", func() {
+			it("it should change the stack and remain stopped", func() {
 				PushAppAndConfirm(app, false)
 				defer app.Destroy()
+
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred(), string(out))
@@ -87,6 +90,35 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(string(contents)).To(ContainSubstring(newStack))
 				Expect(string(contents)).To(MatchRegexp(`requested state:\s*stopped`))
+			})
+		})
+
+		when("the app cannot stage on the target stack", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "fs2_only_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#master"}
+				app.Stack = oldStack
+			})
+
+			it.Focus("restarts itself on the old stack", func() {
+				PushAppAndConfirm(app, true)
+				defer app.Destroy()
+
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				out, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring("%s failed to stage on: %s. Restaging on existing stack: %s", app.Name, newStack, oldStack))
+
+				cmd = exec.Command("cf", "app", app.Name)
+				contents, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(contents).To(ContainSubstring(oldStack))
+
+				body, err := app.GetBody("/")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(body).To(ContainSubstring("Hello World!"))
 			})
 		})
 	})
@@ -206,7 +238,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 }
 
 func PushAppAndConfirm(app *cutlass.App, start bool) {
-	Expect(app.Push()).To(Succeed())
+	Expect(app.Push()).To(Succeed(), fmt.Sprintf("App: %v", app))
 	Eventually(func() ([]string, error) { return app.InstanceStates() }, 20*time.Second).Should(Equal([]string{"RUNNING"}))
 
 	if !start {
