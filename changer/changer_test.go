@@ -61,16 +61,17 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 	})
 
 	when("running change-stack", func() {
-		when("the app is initially stopped", func() {
-			it("does not start the app after changing stacks", func() {
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v2/apps/"+AppBGuid, "-X", "PUT", `-d={"stack_guid":"`+StackAGuid+`","state":"STOPPED"}`).Return(
-					[]string{}, nil)
-
-				result, err := c.ChangeStack(AppBName, StackAName, false)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppBName, StackAName)))
-			})
-		})
+		//	when("the app is initially stopped", func() {
+		//		it("does not start the app after changing stacks", func() {
+		//			//"/v3/apps/"+AppBGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`
+		//			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", "/v3/apps/"+AppBGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`).Return(
+		//				[]string{}, nil)
+		//
+		//			result, err := c.ChangeStack(AppBName, StackAName, false)
+		//			Expect(err).NotTo(HaveOccurred())
+		//			Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppBName, StackAName)))
+		//		})
+		//	})
 
 		//		when("with zero downtime", func() {
 		//			it("makes a call to the v3 endpoint", func() {
@@ -102,55 +103,57 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 		when("when you have zero down time endpoint available", func() {
 			it("starts the app after changing stacks", func() {
-
-				// Load return strings
-				v3AppJSON, err := mocks.FileToString("appV3.json")
-				Expect(err).ToNot(HaveOccurred())
-
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"curl",
 					"/v3/apps/"+AppAGuid,
 					"-X",
 					"PATCH",
-					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"}}}`,
-				).Return(v3AppJSON, nil)
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"} } }`,
+				).Return([]string{}, nil)
 
-				v3PackageJSON := []string{""}
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
-					"curl",
-					"/v3/apps/"+AppAGuid+"/packages",
-					"-X",
-					"GET",
-				).Return(v3PackageJSON, nil)
-
-				mockConnection.EXPECT().CliCommand("v3-stage test-app", "--package-guid", "123")
-
-				v3DropletJSON, err := mocks.FileToString("appV3Droplets.json")
+				appADroplet, err := mocks.FileToString("appV3Droplet.json")
+				Expect(err).ToNot(HaveOccurred())
 
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"curl",
-					"/v3/apps/"+AppAGuid+"/droplets",
-					"-X",
-					"GET",
-				).Return(v3DropletJSON, nil)
+					"/v3/apps/"+AppAGuid+"/droplets/current",
+				).Return(appADroplet, nil)
 
-				mockRunner.EXPECT().Run("cf", ".", false, "v3-set-droplet", AppAName, "--droplet-guid", "123")
+				appABuildPost, err := mocks.FileToString("appAV3BuildPost.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds",
+					"-X", "POST",
+					`-d='{"package": {"guid": "og-package-guid"} }'`,
+				).Return(appABuildPost, nil)
+
+				appABuildGet, err := mocks.FileToString("appAV3BuildGet.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds/some-build-guid",
+				).Return(appABuildGet, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/relationships/current_droplet",
+					"-X", "PATCH",
+					`-d='{ "data": { "guid": "some-droplet-guid" } }'`,
+				).Return([]string{}, nil)
 
 				mockRunner.EXPECT().Run("cf", ".", false, "v3-zdt-restart", AppAName)
 
 				result, err := c.ChangeStack(AppAName, StackBName, false)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
-
 			})
-
 		})
 
 		when("when you do not have zero down time endpoint available", func() {
 			it("starts the app after changing stacks", func() {
-
-				//mockConnection = mocks.SetupChangerMockCliConnection(mockCtrl)
-
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"curl",
 					"/v3/apps/"+AppAGuid,
@@ -201,7 +204,6 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 				result, err := c.ChangeStack(AppAName, StackBName, false)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
-
 			})
 		})
 
@@ -210,11 +212,6 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 				_, err := c.ChangeStack(NotAnApp, StackBName, false)
 				Expect(err).To(MatchError("Some V3 error detail, Another V3 error detail"))
 			})
-		})
-
-		it("returns an error when given an invalid stack", func() {
-			_, err := c.ChangeStack(AppAName, "WrongStack", false)
-			Expect(err).To(MatchError("WrongStack is not a valid stack"))
 		})
 
 		it("returns an error when given the stack that the app is on", func() {

@@ -42,32 +42,52 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			app *cutlass.App
 		)
 
-		it.Before(func() {
-			Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-			Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
-			app = cutlass.New(filepath.Join("testdata", "simple_app"))
-			app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
-			app.Stack = oldStack
+		when("the app was initially started", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Stack = oldStack
+			})
+
+			it.Focus("should change the stack", func() {
+				PushAppAndConfirm(app, true)
+				defer app.Destroy()
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				output, err := cmd.CombinedOutput()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(output)).To(ContainSubstring("Restoring prior application state: %s", "STARTED"))
+				cmd = exec.Command("cf", "app", app.Name)
+				contents, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(contents).To(ContainSubstring(newStack))
+			})
 		})
 
-		it.After(func() {
-			if app != nil {
-				Expect(app.Destroy()).To(Succeed())
-			}
-			app = nil
-		})
+		when("the app was initially stopped", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Stack = oldStack
+			})
 
-		it("should change the stack", func() {
-			PushAppAndConfirm(app)
-			cmd := exec.Command("cf", "change-stack", app.Name, newStack)
-			output, err := cmd.Output()
-			Expect(err).ToNot(HaveOccurred())
-			Expect(string(output)).To(ContainSubstring("Starting app %s", app.Name))
+			it.Focus("it should change the stack and remain stopped", func() {
+				PushAppAndConfirm(app, false)
+				defer app.Destroy()
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				out, err := cmd.CombinedOutput()
+				Expect(err).ToNot(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring("Restoring prior application state: %s", "STOPPED"))
 
-			cmd = exec.Command("cf", "app", app.Name)
-			contents, err := cmd.Output()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(contents).To(ContainSubstring(newStack))
+				cmd = exec.Command("cf", "app", app.Name)
+				contents, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(ContainSubstring(newStack))
+				Expect(string(contents)).To(MatchRegexp(`requested state:\s*stopped`))
+			})
 		})
 	})
 
@@ -98,7 +118,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 				go func(i int) { // Maybe use a worker pool to not bombard our api
 					defer wg.Done()
-					PushAppAndConfirm(apps[i])
+					PushAppAndConfirm(apps[i], true)
 				}(i)
 			}
 			wg.Wait()
@@ -156,7 +176,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 
 			it("fails to delete the stack", func() {
-				PushAppAndConfirm(app)
+				PushAppAndConfirm(app, true)
 				cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred())
@@ -185,9 +205,14 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 }
 
-func PushAppAndConfirm(app *cutlass.App) {
+func PushAppAndConfirm(app *cutlass.App, start bool) {
 	Expect(app.Push()).To(Succeed())
 	Eventually(func() ([]string, error) { return app.InstanceStates() }, 20*time.Second).Should(Equal([]string{"RUNNING"}))
+
+	if !start {
+		cmd := exec.Command("cf", "stop", app.Name)
+		Expect(cmd.Run()).To(Succeed())
+	}
 }
 
 func GetOrgAndSpace() (string, string, error) {

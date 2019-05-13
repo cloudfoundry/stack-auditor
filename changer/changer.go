@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/buger/jsonparser"
 
@@ -21,6 +22,7 @@ const (
 	ChangeStackV3ErrorMsg      = "the --v3 flag is not compatible with your foundation. Please remove the flag and rerun"
 	AppStackAssociationError   = "application is already associated with stack %s"
 	V3ZDTCapiLimit             = "1.76.3"
+	RestoringStateMsg          = "Restoring prior application state: %s"
 )
 
 type RequestData struct {
@@ -60,13 +62,11 @@ func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, er
 	return fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack), nil
 }
 
-func (c *Changer) changeStackForRizzle(appGuid, stackName, appState string) error {
+func (c *Changer) changeStackForRizzle(appGuid, stackName, appInitialState string) error {
 	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("YARRRRRRRRRRRRR")
 
 	curDropletResp, err := c.CF.CFCurl("/v3/apps/" + appGuid + "/droplets/current")
 	if err != nil {
@@ -78,8 +78,6 @@ func (c *Changer) changeStackForRizzle(appGuid, stackName, appState string) erro
 		return err
 	}
 
-	fmt.Println("YARRRRRRRRRRRRR")
-
 	buildPostResp, err := c.CF.CFCurl("/v3/builds", "-X", "POST", `-d='{"package": {"guid": "`+packageGUID+`"} }'`)
 	if err != nil {
 		return err
@@ -90,33 +88,20 @@ func (c *Changer) changeStackForRizzle(appGuid, stackName, appState string) erro
 		return err
 	}
 
-	fmt.Println("YARRRRRRRRRRRRR")
-
-	//buildGetResp, err := c.CF.CFCurl("/v3/builds/" + buildGUID)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//fmt.Println("YARRRRRRRRRRRRR")
-	//fmt.Println("build GET response: ", buildGetResp)
-	//
-	//newStackDropletGUID, err := parseNewStackDropletGUID(buildGetResp)
-	//if err != nil {
-	//	return err
-	//}
-
 	newStackDropletGUID, err := c.pollDropletBuilding(buildGUID)
-
-	fmt.Println("YARRRRRRRRRRRRR")
 
 	_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+newStackDropletGUID+`" } }'`)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("YARRRRRRRRRRRRR")
+	if appInitialState == "STARTED" {
+		fmt.Println(fmt.Sprintf(RestoringStateMsg, "STARTED"))
+		_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
+	} else {
+		fmt.Println(fmt.Sprintf(RestoringStateMsg, "STOPPED"))
+	}
 
-	//_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
 	return err
 }
 
@@ -128,6 +113,8 @@ func (c *Changer) pollDropletBuilding(buildGUID string) (string, error) {
 			return "", err
 		}
 		dropletGUID, _ = parseNewStackDropletGUID(buildGetResp)
+		time.Sleep(5 * time.Second)
+		fmt.Println("Waiting for build...")
 	}
 	return dropletGUID, nil
 }
