@@ -37,7 +37,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		RegisterTestingT(t)
 	})
 
-	when("Change Stack", func() {
+	when.Focus("Change Stack", func() {
 		var (
 			app *cutlass.App
 		)
@@ -51,7 +51,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app.Stack = oldStack
 			})
 
-			it("should change the stack", func() {
+			it("should change the stack and remain started", func() {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
@@ -102,7 +102,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app.Stack = oldStack
 			})
 
-			it.Focus("restarts itself on the old stack", func() {
+			it("restarts itself on the old stack", func() {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 

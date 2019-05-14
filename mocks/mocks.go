@@ -23,8 +23,6 @@ var (
 	StackEGuid = "stackEGuid"
 	AppAName   = "appA"
 	AppBName   = "appB"
-	AppCName   = "appC"
-	NotAnApp   = "notAnApp"
 )
 
 func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
@@ -37,16 +35,10 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	appB, err := FileToString("appB.json")
 	Expect(err).ToNot(HaveOccurred())
 
-	appC, err := FileToString("appC.json")
-	Expect(err).ToNot(HaveOccurred())
-
 	spaces, err := FileToString("spaces.json")
 	Expect(err).ToNot(HaveOccurred())
 
 	buildpacks, err := FileToString("buildpacks.json")
-	Expect(err).ToNot(HaveOccurred())
-
-	errorV3, err := FileToString("errorV3.json")
 	Expect(err).ToNot(HaveOccurred())
 
 	mockConnection := NewMockCliConnection(mockCtrl)
@@ -60,12 +52,6 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppBName)).Return(
 		appB,
 		nil).AnyTimes()
-
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppCName)).Return(
-		appC,
-		nil).AnyTimes()
-
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", NotAnApp)).Return(errorV3, nil).AnyTimes()
 
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v2/spaces?results-per-page=%d", cf.V2ResultsPerPage)).Return(
 		spaces,
