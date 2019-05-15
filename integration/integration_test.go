@@ -44,7 +44,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		RegisterTestingT(t)
 	})
 
-	when.Focus("Change Stack", func() {
+	when("Change Stack", func() {
 		var (
 			app *cutlass.App
 		)
@@ -64,15 +64,16 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
+				if supportsZDT() {
+					breaker := make(chan bool)
+					go confirmZeroDowntime(app, breaker)
+					defer cleanUpRoutines(breaker)
+				}
+
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				output, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(output)).To(ContainSubstring(changer.RestoringStateMsg, "STARTED"))
-
-				cmd = exec.Command("cf", "app", app.Name)
-				contents, err := cmd.CombinedOutput()
-				Expect(err).NotTo(HaveOccurred())
-				Expect(contents).To(ContainSubstring(newStack))
 			})
 		})
 
@@ -118,6 +119,12 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			it("restarts itself on the old stack", func() {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
+
+				if supportsZDT() {
+					breaker := make(chan bool)
+					go confirmZeroDowntime(app, breaker)
+					defer cleanUpRoutines(breaker)
+				}
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
@@ -291,4 +298,32 @@ func CreateBuildpack(buildpackName, stackName string) error {
 	cmd := exec.Command("cf", "curl", "/v2/buildpacks", "-X", "POST", "-d", data)
 
 	return cmd.Run()
+}
+
+func supportsZDT() bool {
+	version, err := cutlass.ApiVersion()
+	Expect(err).NotTo(HaveOccurred())
+
+	ok, err := changer.IsZDTSupported(version)
+	Expect(err).NotTo(HaveOccurred())
+
+	return ok
+}
+
+func confirmZeroDowntime(app *cutlass.App, breaker chan bool) {
+	for {
+		select {
+		case <-breaker:
+			return
+		default:
+			body, err := app.GetBody("/")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(body).To(Equal(appBody))
+			time.Sleep(interval)
+		}
+	}
+}
+
+func cleanUpRoutines(breaker chan bool) {
+	breaker <- true
 }
