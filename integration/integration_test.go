@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudfoundry/stack-auditor/changer"
+
 	"github.com/cloudfoundry/libbuildpack/cutlass"
 
 	"github.com/sclevine/spec/report"
@@ -26,6 +28,11 @@ const (
 	fakeBuildpack       = "fakeBuildpack"
 	oldStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 14.04)"
 	newStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 18.04)"
+	appBody             = "Hello World!"
+	duration            = 90 * time.Second
+	interval            = 100 * time.Millisecond
+	disk                = "128M"
+	memory              = "128M"
 )
 
 func TestIntegrationStackAuditor(t *testing.T) {
@@ -49,6 +56,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app = cutlass.New(filepath.Join("testdata", "simple_app"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
 			})
 
 			it("should change the stack and remain started", func() {
@@ -58,7 +67,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				output, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(output)).To(ContainSubstring("Restoring prior application state: %s", "STARTED"))
+				Expect(string(output)).To(ContainSubstring(changer.RestoringStateMsg, "STARTED"))
 
 				cmd = exec.Command("cf", "app", app.Name)
 				contents, err := cmd.CombinedOutput()
@@ -74,6 +83,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app = cutlass.New(filepath.Join("testdata", "simple_app"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
 			})
 
 			it("it should change the stack and remain stopped", func() {
@@ -83,7 +94,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred(), string(out))
-				Expect(string(out)).To(ContainSubstring("Restoring prior application state: %s", "STOPPED"))
+				Expect(string(out)).To(ContainSubstring(changer.RestoringStateMsg, "STOPPED"))
 
 				cmd = exec.Command("cf", "app", app.Name)
 				contents, err := cmd.CombinedOutput()
@@ -100,6 +111,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				app = cutlass.New(filepath.Join("testdata", "fs2_only_app"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#master"}
 				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
 			})
 
 			it("restarts itself on the old stack", func() {
@@ -111,13 +124,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				Expect(err).NotTo(HaveOccurred(), string(out))
 				Expect(string(out)).To(ContainSubstring("%s failed to stage on: %s. Restaging on existing stack: %s", app.Name, newStack, oldStack))
 
-				cmd = exec.Command("cf", "app", app.Name)
-				contents, err := cmd.CombinedOutput()
-				Expect(err).NotTo(HaveOccurred())
-				Expect(contents).To(ContainSubstring(oldStack))
-
 				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
-				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring("Hello World!"))
+				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
 			})
 		})
 	})
@@ -144,8 +152,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				apps[i] = cutlass.New(filepath.Join("testdata", "simple_app"))
 				apps[i].Stack = stacks[i%len(stacks)]
 				apps[i].Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
-				apps[i].Memory = "128M"
-				apps[i].Disk = "128M"
+				apps[i].Memory = memory
+				apps[i].Disk = disk
 
 				go func(i int) { // Maybe use a worker pool to not bombard our api
 					defer wg.Done()

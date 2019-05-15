@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/blang/semver"
 	"github.com/buger/jsonparser"
@@ -15,7 +16,6 @@ import (
 const (
 	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n\n"
 	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
-	ChangeStackV3ErrorMsg      = "the --v3 flag is not compatible with your foundation. Please remove the flag and rerun"
 	AppStackAssociationError   = "application is already associated with stack %s"
 	V3ZDTCapiMinimum           = "1.76.3" // The CAPI release version for PAS 2.5.0
 	RestoringStateMsg          = "Restoring prior application state: %s"
@@ -41,7 +41,7 @@ type Runner interface {
 	SetEnv(variableName string, path string) error
 }
 
-func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, error) {
+func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
 	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
 	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName)
 	if err != nil {
@@ -54,7 +54,6 @@ func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, er
 
 	if err := c.changeStack(appName, appGuid, newStack, appState); err != nil {
 		fmt.Fprintf(os.Stderr, RecoveryMsg, appName, newStack, appStack)
-
 		if err := c.recoverApp(appName, appGuid, appState, appStack); err != nil {
 			fmt.Fprintf(os.Stderr, "unable to recover %s", appName)
 			return "", err
@@ -66,28 +65,42 @@ func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, er
 	return fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack), nil
 }
 
-func (c *Changer) changeStack(appName, appGuid, stackName, appInitialState string) error {
-	err := c.assignTargetStack(appGuid, stackName)
+func (c *Changer) changeStack(appName, appGUID, stackName, appInitialState string) error {
+	err := c.assignTargetStack(appGUID, stackName)
 	if err != nil {
 		return err
 	}
 
-	zdtExists, err := c.isZDTSupported()
+	newDropletGUID, err := c.v3Stage(appGUID)
+	if err != nil {
+		return err
+	}
+
+	if err := c.v3SetDroplet(appGUID, newDropletGUID); err != nil {
+		return err
+	}
+
+	version, err := c.GetAPIVersion()
+	if err != nil {
+		return err
+	}
+
+	zdtExists, err := IsZDTSupported(version)
 	if err != nil {
 		return err
 	}
 
 	if zdtExists {
-		return c.restartZDT(appName)
+		err = c.restartZDT(appName)
 	} else {
-		err = c.rebuildApp(appGuid)
-		if err != nil {
-			return err
-		}
-
+		err = c.restartNonZDT(appName, appGUID)
 	}
 
-	return c.restoreAppState(appGuid, appInitialState)
+	if err != nil {
+		return err
+	}
+
+	return c.restoreAppState(appGUID, appInitialState)
 }
 
 func (c *Changer) assignTargetStack(appGuid, stackName string) error {
@@ -95,18 +108,8 @@ func (c *Changer) assignTargetStack(appGuid, stackName string) error {
 	return err
 }
 
-func (c *Changer) isZDTSupported() (bool, error) {
-	CAPIZDTLimitSemver, _ := semver.Parse(V3ZDTCapiMinimum)
-	currentCAPIVersion, err := c.CF.Conn.ApiVersion()
-	if err != nil {
-		return false, err
-	}
-	currentCAPISemver, err := semver.Parse(currentCAPIVersion)
-	if err != nil {
-		return false, err
-	}
-
-	return currentCAPISemver.GTE(CAPIZDTLimitSemver), nil
+func (c *Changer) GetAPIVersion() (string, error) {
+	return c.CF.Conn.ApiVersion()
 }
 
 func (c *Changer) restartZDT(appName string) error {
@@ -114,34 +117,43 @@ func (c *Changer) restartZDT(appName string) error {
 	return c.Runner.Run("cf", ".", true, "v3-zdt-restart", appName)
 }
 
-func (c *Changer) rebuildApp(appGuid string) error {
+func (c *Changer) restartNonZDT(appName, appGuid string) error {
+	fmt.Printf("Restarting %s with down time...\n", appName)
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
+	return err
+}
+
+func (c *Changer) v3Stage(appGuid string) (string, error) {
 	curDropletResp, err := c.CF.CFCurl("/v3/apps/" + appGuid + "/droplets/current")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	packageGUID, err := parsePackageFromDroplet(curDropletResp)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	buildPostResp, err := c.CF.CFCurl("/v3/builds", "-X", "POST", `-d='{"package": {"guid": "`+packageGUID+`"} }'`)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	buildGUID, err := parseBuildGUID(buildPostResp)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	buildGetResp, err := c.waitOnAppBuild(buildGUID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	newStackDropletGUID, err := parseNewStackDropletGUID(buildGetResp)
-	_, err = c.CF.CFCurl("/v3/apps/"+appGuid+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+newStackDropletGUID+`" } }'`)
+	return parseNewStackDropletGUID(buildGetResp)
+}
+
+func (c *Changer) v3SetDroplet(appGUID, dropletGUID string) error {
+	_, err := c.CF.CFCurl("/v3/apps/"+appGUID+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+dropletGUID+`" } }'`)
 	return err
 }
 
@@ -158,7 +170,7 @@ func (c *Changer) restoreAppState(appGuid, appInitialState string) error {
 	}
 
 	fmt.Println(fmt.Sprintf(RestoringStateMsg, appInitialState))
-	_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/" + action, "-X", "POST")
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/"+action, "-X", "POST")
 	return err
 }
 
@@ -191,6 +203,7 @@ func (c *Changer) waitOnAppBuild(buildGUID string) (buildGetResp []string, err e
 
 		buildJSON := strings.Join(buildGetResp, "\n")
 		buildState, err = jsonparser.GetString([]byte(buildJSON), "state")
+		time.Sleep(5 * time.Second)
 	}
 
 	if buildState == "FAILED" {
@@ -209,10 +222,29 @@ func parseNewStackDropletGUID(buildGetResp []string) (string, error) {
 	return dropletGUID, nil
 }
 
+func IsZDTSupported(version string) (bool, error) {
+	limitSemver, _ := semver.Parse(V3ZDTCapiMinimum)
+	CAPISemver, err := semver.Parse(version)
+	if err != nil {
+		return false, err
+	}
+	return CAPISemver.GTE(limitSemver), nil
+}
+
 func (c *Changer) recoverApp(appName, appGuid, appInitialState, appInitialStack string) error {
-	if err := c.changeStack(appName, appGuid, appInitialStack, appInitialState); err != nil {
+	version, err := c.GetAPIVersion()
+	if err != nil {
 		return err
 	}
 
-	return nil
+	zdtExists, err := IsZDTSupported(version)
+	if err != nil {
+		return err
+	}
+
+	if zdtExists {
+		return c.assignTargetStack(appGuid, appInitialStack)
+	}
+
+	return c.changeStack(appName, appGuid, appInitialStack, appInitialState)
 }
