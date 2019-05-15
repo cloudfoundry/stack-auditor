@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudfoundry/stack-auditor/changer"
+
 	"github.com/cloudfoundry/libbuildpack/cutlass"
 
 	"github.com/sclevine/spec/report"
@@ -26,6 +28,11 @@ const (
 	fakeBuildpack       = "fakeBuildpack"
 	oldStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 14.04)"
 	newStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 18.04)"
+	appBody             = "Hello World!"
+	duration            = 90 * time.Second
+	interval            = 100 * time.Millisecond
+	disk                = "128M"
+	memory              = "128M"
 )
 
 func TestIntegrationStackAuditor(t *testing.T) {
@@ -37,37 +44,89 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		RegisterTestingT(t)
 	})
 
-	when("Change Stack", func() {
+	when.Focus("Change Stack", func() {
 		var (
 			app *cutlass.App
 		)
 
-		it.Before(func() {
-			Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-			Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
-			app = cutlass.New(filepath.Join("testdata", "simple_app"))
-			app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
-			app.Stack = oldStack
+		when("the app was initially started", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
+			})
+
+			it("should change the stack and remain started", func() {
+				PushAppAndConfirm(app, true)
+				defer app.Destroy()
+
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				output, err := cmd.CombinedOutput()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(output)).To(ContainSubstring(changer.RestoringStateMsg, "STARTED"))
+
+				cmd = exec.Command("cf", "app", app.Name)
+				contents, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(contents).To(ContainSubstring(newStack))
+			})
 		})
 
-		it.After(func() {
-			if app != nil {
-				Expect(app.Destroy()).To(Succeed())
-			}
-			app = nil
+		when("the app was initially stopped", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
+			})
+
+			it("it should change the stack and remain stopped", func() {
+				PushAppAndConfirm(app, false)
+				defer app.Destroy()
+
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				out, err := cmd.CombinedOutput()
+				Expect(err).ToNot(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring(changer.RestoringStateMsg, "STOPPED"))
+
+				cmd = exec.Command("cf", "app", app.Name)
+				contents, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(ContainSubstring(newStack))
+				Expect(string(contents)).To(MatchRegexp(`requested state:\s*stopped`))
+			})
 		})
 
-		it("should change the stack", func() {
-			PushAppAndConfirm(app)
-			cmd := exec.Command("cf", "change-stack", app.Name, newStack)
-			output, err := cmd.Output()
-			Expect(err).ToNot(HaveOccurred())
-			Expect(string(output)).To(ContainSubstring("Starting app %s", app.Name))
+		when("the app cannot stage on the target stack", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "fs2_only_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#master"}
+				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
+			})
 
-			cmd = exec.Command("cf", "app", app.Name)
-			contents, err := cmd.Output()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(contents).To(ContainSubstring(newStack))
+			it("restarts itself on the old stack", func() {
+				PushAppAndConfirm(app, true)
+				defer app.Destroy()
+
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				out, err := cmd.CombinedOutput()
+				Expect(err).NotTo(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring("%s failed to stage on: %s. Restaging on existing stack: %s", app.Name, newStack, oldStack))
+
+				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
+				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
+			})
 		})
 	})
 
@@ -93,12 +152,12 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				apps[i] = cutlass.New(filepath.Join("testdata", "simple_app"))
 				apps[i].Stack = stacks[i%len(stacks)]
 				apps[i].Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
-				apps[i].Memory = "128M"
-				apps[i].Disk = "128M"
+				apps[i].Memory = memory
+				apps[i].Disk = disk
 
 				go func(i int) { // Maybe use a worker pool to not bombard our api
 					defer wg.Done()
-					PushAppAndConfirm(apps[i])
+					PushAppAndConfirm(apps[i], true)
 				}(i)
 			}
 			wg.Wait()
@@ -156,7 +215,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 
 			it("fails to delete the stack", func() {
-				PushAppAndConfirm(app)
+				PushAppAndConfirm(app, true)
 				cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred())
@@ -185,9 +244,14 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 }
 
-func PushAppAndConfirm(app *cutlass.App) {
-	Expect(app.Push()).To(Succeed())
+func PushAppAndConfirm(app *cutlass.App, start bool) {
+	Expect(app.Push()).To(Succeed(), fmt.Sprintf("App: %v", app))
 	Eventually(func() ([]string, error) { return app.InstanceStates() }, 20*time.Second).Should(Equal([]string{"RUNNING"}))
+
+	if !start {
+		cmd := exec.Command("cf", "stop", app.Name)
+		Expect(cmd.Run()).To(Succeed())
+	}
 }
 
 func GetOrgAndSpace() (string, string, error) {

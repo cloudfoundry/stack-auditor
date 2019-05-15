@@ -2,6 +2,13 @@ package changer
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/blang/semver"
+	"github.com/buger/jsonparser"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 )
@@ -9,7 +16,10 @@ import (
 const (
 	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n\n"
 	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
-	ChangeStackV3ErrorMsg      = "the --v3 flag is not compatible with your foundation. Please remove the flag and rerun"
+	AppStackAssociationError   = "application is already associated with stack %s"
+	V3ZDTCapiMinimum           = "1.76.3" // The CAPI release version for PAS 2.5.0
+	RestoringStateMsg          = "Restoring prior application state: %s"
+	RecoveryMsg                = "%s failed to stage on: %s. Restaging on existing stack: %s\n"
 )
 
 type RequestData struct {
@@ -21,61 +31,220 @@ type RequestData struct {
 }
 
 type Changer struct {
-	CF cf.CF
+	CF     cf.CF
+	Runner Runner
 }
 
-func (c *Changer) ChangeStack(appName, newStack string, v3Flag bool) (string, error) {
-	//This is temporary while we flush out the v3 logic
-	v3Flag = false
-	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
+type Runner interface {
+	Run(bin, dir string, quiet bool, args ...string) error
+	RunWithOutput(bin, dir string, quiet bool, args ...string) (string, error)
+	SetEnv(variableName string, path string) error
+}
 
+func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
+	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
 	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName)
 	if err != nil {
 		return "", err
 	}
 
 	if appStack == newStack {
-		return "", fmt.Errorf("application is already associated with stack %s", newStack)
+		return "", fmt.Errorf(AppStackAssociationError, newStack)
 	}
 
-	stackGuid, err := c.CF.GetStackGUID(newStack)
+	if err := c.changeStack(appName, appGuid, newStack, appState); err != nil {
+		fmt.Fprintf(os.Stderr, RecoveryMsg, appName, newStack, appStack)
+		if err := c.recoverApp(appName, appGuid, appState, appStack); err != nil {
+			fmt.Fprintf(os.Stderr, "unable to recover %s", appName)
+			return "", err
+		}
+
+		return "", nil
+	}
+
+	return fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack), nil
+}
+
+func (c *Changer) changeStack(appName, appGUID, stackName, appInitialState string) error {
+	err := c.assignTargetStack(appGUID, stackName)
+	if err != nil {
+		return err
+	}
+
+	newDropletGUID, err := c.v3Stage(appGUID)
+	if err != nil {
+		return err
+	}
+
+	if err := c.v3SetDroplet(appGUID, newDropletGUID); err != nil {
+		return err
+	}
+
+	version, err := c.GetAPIVersion()
+	if err != nil {
+		return err
+	}
+
+	zdtExists, err := IsZDTSupported(version)
+	if err != nil {
+		return err
+	}
+
+	if zdtExists {
+		err = c.restartZDT(appName)
+	} else {
+		err = c.restartNonZDT(appName, appGUID)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return c.restoreAppState(appGUID, appInitialState)
+}
+
+func (c *Changer) assignTargetStack(appGuid, stackName string) error {
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"} } }`)
+	return err
+}
+
+func (c *Changer) GetAPIVersion() (string, error) {
+	return c.CF.Conn.ApiVersion()
+}
+
+func (c *Changer) restartZDT(appName string) error {
+	fmt.Printf("Restarting %s with zero down time...\n", appName)
+	return c.Runner.Run("cf", ".", true, "v3-zdt-restart", appName)
+}
+
+func (c *Changer) restartNonZDT(appName, appGuid string) error {
+	fmt.Printf("Restarting %s with down time...\n", appName)
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
+	return err
+}
+
+func (c *Changer) v3Stage(appGuid string) (string, error) {
+	curDropletResp, err := c.CF.CFCurl("/v3/apps/" + appGuid + "/droplets/current")
 	if err != nil {
 		return "", err
 	}
 
-	if v3Flag {
-		if err := c.changeStackV3(appGuid, newStack); err != nil {
-			return "", err
-		}
-
-	} else {
-		if err := c.changeStackV2(appName, appGuid, stackGuid, appState); err != nil {
-			return "", err
-		}
+	packageGUID, err := parsePackageFromDroplet(curDropletResp)
+	if err != nil {
+		return "", err
 	}
 
-	result := fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack)
-	return result, nil
+	buildPostResp, err := c.CF.CFCurl("/v3/builds", "-X", "POST", `-d='{"package": {"guid": "`+packageGUID+`"} }'`)
+	if err != nil {
+		return "", err
+	}
+
+	buildGUID, err := parseBuildGUID(buildPostResp)
+	if err != nil {
+		return "", err
+	}
+
+	buildGetResp, err := c.waitOnAppBuild(buildGUID)
+	if err != nil {
+		return "", err
+	}
+
+	return parseNewStackDropletGUID(buildGetResp)
 }
 
-func (c *Changer) changeStackV3(appGuid, stackName string) error {
-	_, err := c.CF.CFCurl("/v3/apps/"+appGuid, "-X", "PATCH", `-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+stackName+`"}}}`)
+func (c *Changer) v3SetDroplet(appGUID, dropletGUID string) error {
+	_, err := c.CF.CFCurl("/v3/apps/"+appGUID+"/relationships/current_droplet", "-X", "PATCH", `-d='{ "data": { "guid": "`+dropletGUID+`" } }'`)
+	return err
+}
+
+func (c *Changer) restoreAppState(appGuid, appInitialState string) error {
+	var action string
+
+	switch appInitialState {
+	case "STARTED":
+		action = "start"
+	case "STOPPED":
+		action = "stop"
+	default:
+		return fmt.Errorf("unhandled initial application state (%s)", appInitialState)
+	}
+
+	fmt.Println(fmt.Sprintf(RestoringStateMsg, appInitialState))
+	_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/"+action, "-X", "POST")
+	return err
+}
+
+func parsePackageFromDroplet(curDropletResp []string) (string, error) {
+	packageURI, err := jsonparser.GetString([]byte(strings.Join(curDropletResp, "\n")), "links", "package", "href")
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Base(packageURI), nil
+}
+
+func parseBuildGUID(buildPostResp []string) (string, error) {
+	buildGUID, err := jsonparser.GetString([]byte(strings.Join(buildPostResp, "\n")), "guid")
+	if err != nil {
+		return "", err
+	}
+
+	return buildGUID, nil
+}
+
+func (c *Changer) waitOnAppBuild(buildGUID string) (buildGetResp []string, err error) {
+	buildState := "STAGING"
+
+	for buildState == "STAGING" {
+		buildGetResp, err = c.CF.CFCurl("/v3/builds/" + buildGUID)
+		if err != nil {
+			return []string{}, err
+		}
+
+		buildJSON := strings.Join(buildGetResp, "\n")
+		buildState, err = jsonparser.GetString([]byte(buildJSON), "state")
+		time.Sleep(5 * time.Second)
+	}
+
+	if buildState == "FAILED" {
+		return []string{}, fmt.Errorf("app build failed. build GUID: %s", buildGUID)
+	}
+
+	return buildGetResp, nil
+}
+
+func parseNewStackDropletGUID(buildGetResp []string) (string, error) {
+	dropletGUID, err := jsonparser.GetString([]byte(strings.Join(buildGetResp, "\n")), "droplet", "guid")
+	if err != nil {
+		return "", err
+	}
+
+	return dropletGUID, nil
+}
+
+func IsZDTSupported(version string) (bool, error) {
+	limitSemver, _ := semver.Parse(V3ZDTCapiMinimum)
+	CAPISemver, err := semver.Parse(version)
+	if err != nil {
+		return false, err
+	}
+	return CAPISemver.GTE(limitSemver), nil
+}
+
+func (c *Changer) recoverApp(appName, appGuid, appInitialState, appInitialStack string) error {
+	version, err := c.GetAPIVersion()
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func (c *Changer) changeStackV2(appName, appGuid, newStackGuid, appState string) error {
-	_, err := c.CF.CFCurl("/v2/apps/"+appGuid, "-X", "PUT", `-d={"stack_guid":"`+newStackGuid+`","state":"STOPPED"}`)
+	zdtExists, err := IsZDTSupported(version)
 	if err != nil {
 		return err
 	}
-	if appState == "STARTED" {
-		if _, err := c.CF.Conn.CliCommand("start", appName); err != nil {
-			return err
-		}
+
+	if zdtExists {
+		return c.assignTargetStack(appGuid, appInitialStack)
 	}
-	return nil
+
+	return c.changeStack(appName, appGuid, appInitialStack, appInitialState)
 }

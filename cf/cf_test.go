@@ -67,5 +67,19 @@ func testCF(t *testing.T, when spec.G, it spec.S) {
 
 			})
 		})
+
+		when("GetStackGUID", func() {
+			it("returns an error when given an invalid stack", func() {
+				invalidStack := "NotAStack"
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"stack",
+					"--guid",
+					invalidStack,
+				).Return([]string{}, nil)
+
+				_, err := c.GetStackGUID(invalidStack)
+				Expect(err).To(MatchError(invalidStack + " is not a valid stack"))
+			})
+		})
 	})
 }

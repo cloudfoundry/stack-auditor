@@ -44,4 +44,35 @@ type V3App struct {
 			} `json:"data"`
 		} `json:"space"`
 	} `json:"relationships"`
+	Links struct {
+		Self struct {
+			Href string `json:"href"`
+		} `json:"self"`
+		Packages struct {
+			Href string `json:"href"`
+		} `json:"packages"`
+		CurrentDroplet struct {
+			Href string `json:"href"`
+		} `json:"current_droplet"`
+		Droplets struct {
+			Href string `json:"href"`
+		} `json:"droplets"`
+		Tasks struct {
+			Href string `json:"href"`
+		} `json:"tasks"`
+		Start struct {
+			Href   string `json:"href"`
+			Method string `json:"method"`
+		} `json:"start"`
+		Stop struct {
+			Href   string `json:"href"`
+			Method string `json:"method"`
+		} `json:"stop"`
+		Revisions struct {
+			Href string `json:"href"`
+		} `json:"revisions"`
+		DeployedRevisions struct {
+			Href string `json:"href"`
+		} `json:"deployed_revisions"`
+	} `json:"links"`
 }

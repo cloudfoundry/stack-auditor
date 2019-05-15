@@ -1,0 +1,40 @@
+{
+  "guid": "some-build-guid",
+  "created_at": "2019-05-10T16:25:52Z",
+  "updated_at": "2019-05-10T16:25:58Z",
+  "state": "STAGED",
+  "error": null,
+  "lifecycle": {
+    "type": "buildpack",
+    "data": {
+      "buildpacks": [
+        "some-buildpack"
+      ],
+      "stack": "stackB"
+    }
+  },
+  "package": {
+    "guid": "og-package-guid"
+  },
+  "droplet": {
+    "guid": "some-droplet-guid",
+    "href": "https://api.frontier.buildpacks-gcp.ci.cf-app.com/v3/droplets/some-droplet-guid"
+  },
+  "metadata": {
+    "labels": {},
+    "annotations": {}
+  },
+  "links": {
+    "self": {
+      "href": "https://api.frontier.buildpacks-gcp.ci.cf-app.com/v3/builds/some-build-guid"
+    },
+    "app": {
+      "href": "https://api.frontier.buildpacks-gcp.ci.cf-app.com/v3/apps/appAGuid"
+    }
+  },
+  "created_by": {
+    "guid": "super-omega-awesome-guid",
+    "name": "admin",
+    "email": "admin"
+  }
+}
