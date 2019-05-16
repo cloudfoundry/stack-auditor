@@ -149,7 +149,12 @@ func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
 	var apps resources.V3AppsJSON
 	var app resources.V3App
 
-	endpoint := fmt.Sprintf("/v3/apps?names=%s", appName)
+	curSpace, err := cf.Conn.GetCurrentSpace()
+	if err != nil {
+		return app, err
+	}
+
+	endpoint := fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", appName, curSpace.Guid)
 	appJSON, err := cf.CFCurl(endpoint)
 	if err != nil {
 		return app, err
@@ -163,19 +168,16 @@ func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
 	}
 
 	app = apps.Apps[0]
-
 	return app, nil
 }
 
 func (cf *CF) GetAppInfo(appName string) (appGuid, appState, appStack string, err error) {
-
 	app, err := cf.GetAppByName(appName)
 	if err != nil {
 		return "", "", "", err
 	}
 
 	return app.GUID, app.State, app.Lifecycle.Data.Stack, nil
-
 }
 
 func (cf *CF) CFCurl(args ...string) ([]string, error) {

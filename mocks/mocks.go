@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 
-	"code.cloudfoundry.org/cli/plugin/models"
+	plugin_models "code.cloudfoundry.org/cli/plugin/models"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
 )
@@ -23,6 +23,8 @@ var (
 	StackEGuid = "stackEGuid"
 	AppAName   = "appA"
 	AppBName   = "appB"
+	SpaceGuid  = "commonSpaceGuid"
+	SpaceName  = "commonSpace"
 )
 
 func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
@@ -45,11 +47,11 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?per_page=%d", cf.V3ResultsPerPage)).Return(
 		apps, nil).AnyTimes()
 
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppAName)).Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", AppAName, SpaceGuid)).Return(
 		appA,
 		nil).AnyTimes()
 
-	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s", AppBName)).Return(
+	mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", AppBName, SpaceGuid)).Return(
 		appB,
 		nil).AnyTimes()
 
@@ -92,7 +94,7 @@ func SetupMockCliConnection(mockCtrl *gomock.Controller) *MockCliConnection {
 			},
 		}, nil).AnyTimes()
 
-	SetCurrentOrgAndSpace(mockConnection, "commonOrg", "commonSpace", "commonSpaceGuid")
+	SetCurrentOrgAndSpace(mockConnection, "commonOrg", SpaceName, SpaceGuid)
 
 	return mockConnection
 }
