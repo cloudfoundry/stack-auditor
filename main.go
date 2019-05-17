@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -28,7 +29,7 @@ const (
 	ChangeStackCmd   = "change-stack"
 	DeleteStackCmd   = "delete-stack"
 	ChangeStackUsage = "Usage: cf change-stack <app> <stack> [--v3]"
-	V3Flag           = "--v3"
+	ErrorMsg         = "a problem occurred: %v\n"
 )
 
 func main() {
@@ -54,7 +55,7 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		}
 		info, err := a.Audit()
 		if err != nil {
-			log.Fatalf("error talking to cf: %v\n", err)
+			log.Fatalf(ErrorMsg, err)
 		}
 		fmt.Println(info)
 
@@ -72,7 +73,7 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		}
 		info, err := a.DeleteStack(args[1])
 		if err != nil {
-			log.Fatalf("error talking to cf: %v\n", err)
+			log.Fatalf(ErrorMsg, err)
 		}
 		fmt.Println(info)
 
@@ -81,15 +82,25 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 			log.Fatalf("Incorrect number of arguments provided - %s\n", ChangeStackUsage)
 		}
 
-		c := changer.Changer{}
+		c := changer.Changer{
+			Log: func(w io.Writer, msg string) {
+				w.Write([]byte(msg))
+			},
+		}
 		c.Runner = utils.Command{}
+
 		c.CF = cf.CF{
 			Conn: cliConnection,
 		}
+		space, err := c.CF.Conn.GetCurrentSpace()
+		if err != nil {
+			log.Fatalf(ErrorMsg, err)
+		}
+		c.CF.Space = space
 
 		info, err := c.ChangeStack(args[1], args[2])
 		if err != nil {
-			log.Fatalf("error talking to cf: %v\n", err)
+			log.Fatalf(ErrorMsg, err)
 		}
 		fmt.Println(info)
 

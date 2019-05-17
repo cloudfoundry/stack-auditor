@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"strings"
 
+	plugin_models "code.cloudfoundry.org/cli/plugin/models"
+
 	"code.cloudfoundry.org/cli/plugin"
 	"github.com/cloudfoundry/stack-auditor/resources"
 )
 
 type CF struct {
-	Conn plugin.CliConnection
+	Conn  plugin.CliConnection
+	Space plugin_models.Space
 }
 
 const (
@@ -149,12 +152,7 @@ func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
 	var apps resources.V3AppsJSON
 	var app resources.V3App
 
-	curSpace, err := cf.Conn.GetCurrentSpace()
-	if err != nil {
-		return app, err
-	}
-
-	endpoint := fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", appName, curSpace.Guid)
+	endpoint := fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", appName, cf.Space.Guid)
 	appJSON, err := cf.CFCurl(endpoint)
 	if err != nil {
 		return app, err

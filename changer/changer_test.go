@@ -2,7 +2,10 @@ package changer_test
 
 import (
 	"fmt"
+	"io"
 	"testing"
+
+	plugin_models "code.cloudfoundry.org/cli/plugin/models"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 
@@ -39,6 +42,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 		mockConnection *mocks.MockCliConnection
 		mockRunner     *MockRunner
 		c              changer.Changer
+		logMsg         string
 	)
 
 	it.Before(func() {
@@ -52,8 +56,18 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			Runner: mockRunner,
 			CF: cf.CF{
 				Conn: mockConnection,
+				Space: plugin_models.Space{
+					plugin_models.SpaceFields{
+						Guid: mocks.SpaceGuid,
+						Name: mocks.SpaceName,
+					},
+				},
+			},
+			Log: func(w io.Writer, msg string) {
+				logMsg = msg
 			},
 		}
+
 	})
 
 	it.After(func() {
@@ -178,6 +192,34 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 				result, err := c.ChangeStack(AppAName, StackBName)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
+			})
+		})
+
+		when("there is an error changing stacks", func() {
+			it("returns a useful error message", func() {
+				errorMsg, err := mocks.FileToString("lifecycleV3Error.json")
+				Expect(err).ToNot(HaveOccurred())
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"} } }`,
+				).Return(errorMsg, nil)
+
+				mockConnection.EXPECT().ApiVersion().Return("99.99.99", nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`,
+				)
+
+				_, err = c.ChangeStack(AppAName, StackBName)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(logMsg).To(ContainSubstring(changer.ErrorChangingStack))
 			})
 		})
 

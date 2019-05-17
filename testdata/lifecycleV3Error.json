@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "detail": "Lifecycle type is not included in the list: buildpack, docker",
+      "title": "CF-UnprocessableEntity",
+      "code": 10008
+    }
+  ]
+}

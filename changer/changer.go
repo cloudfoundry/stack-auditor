@@ -2,6 +2,7 @@ package changer
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/buger/jsonparser"
+	"github.com/pkg/errors"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 )
@@ -19,7 +21,13 @@ const (
 	AppStackAssociationError   = "application is already associated with stack %s"
 	V3ZDTCapiMinimum           = "1.76.3" // The CAPI release version for PAS 2.5.0
 	RestoringStateMsg          = "Restoring prior application state: %s"
-	RecoveryMsg                = "%s failed to stage on: %s. Restaging on existing stack: %s\n"
+	RecoveryMsg                = "%s failed to stage on: %s.\nError: %s\nRestaging on existing stack: %s\n"
+	ErrorChangingStack         = "problem assigning targetStack"
+	ErrorStaging               = "problem staging new droplet"
+	ErrorSettingDroplet        = "problem setting droplet"
+	ErrorRetrievingAPIVersion  = "problem retrieving cf api version"
+	ErrorCheckingZDTSupport    = "problem checking for ZDT support"
+	ErrorRestartingApp         = "problem restarting app"
 )
 
 type RequestData struct {
@@ -33,6 +41,7 @@ type RequestData struct {
 type Changer struct {
 	CF     cf.CF
 	Runner Runner
+	Log    func(writer io.Writer, msg string)
 }
 
 type Runner interface {
@@ -42,7 +51,7 @@ type Runner interface {
 }
 
 func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
-	fmt.Printf(AttemptingToChangeStackMsg, newStack, appName)
+	fmt.Printf(AttemptingToChangeStackMsg, newStack, fmt.Sprintf("%s/%s/", c.CF.Space.Name, appName))
 	appGuid, appState, appStack, err := c.CF.GetAppInfo(appName)
 	if err != nil {
 		return "", err
@@ -52,10 +61,10 @@ func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
 		return "", fmt.Errorf(AppStackAssociationError, newStack)
 	}
 
-	if err := c.changeStack(appName, appGuid, newStack, appState); err != nil {
-		fmt.Fprintf(os.Stderr, RecoveryMsg, appName, newStack, appStack)
+	if err := c.change(appName, appGuid, newStack, appState); err != nil {
+		c.Log(os.Stderr, fmt.Sprintf(RecoveryMsg, appName, newStack, err, appStack))
 		if err := c.recoverApp(appName, appGuid, appState, appStack); err != nil {
-			fmt.Fprintf(os.Stderr, "unable to recover %s", appName)
+			c.Log(os.Stderr, fmt.Sprintf("unable to recover %s", appName))
 			return "", err
 		}
 
@@ -65,29 +74,29 @@ func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
 	return fmt.Sprintf(ChangeStackSuccessMsg, appName, newStack), nil
 }
 
-func (c *Changer) changeStack(appName, appGUID, stackName, appInitialState string) error {
+func (c *Changer) change(appName, appGUID, stackName, appInitialState string) error {
 	err := c.assignTargetStack(appGUID, stackName)
 	if err != nil {
-		return err
+		return errors.Wrap(err, ErrorChangingStack)
 	}
 
 	newDropletGUID, err := c.v3Stage(appGUID)
 	if err != nil {
-		return err
+		return errors.Wrap(err, ErrorStaging)
 	}
 
 	if err := c.v3SetDroplet(appGUID, newDropletGUID); err != nil {
-		return err
+		return errors.Wrap(err, ErrorSettingDroplet)
 	}
 
 	version, err := c.GetAPIVersion()
 	if err != nil {
-		return err
+		return errors.Wrap(err, ErrorRetrievingAPIVersion)
 	}
 
 	zdtExists, err := IsZDTSupported(version)
 	if err != nil {
-		return err
+		return errors.Wrap(err, ErrorCheckingZDTSupport)
 	}
 
 	if zdtExists {
@@ -97,7 +106,7 @@ func (c *Changer) changeStack(appName, appGUID, stackName, appInitialState strin
 	}
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, ErrorRestartingApp)
 	}
 
 	return c.restoreAppState(appGUID, appInitialState)
@@ -246,5 +255,5 @@ func (c *Changer) recoverApp(appName, appGuid, appInitialState, appInitialStack 
 		return c.assignTargetStack(appGuid, appInitialStack)
 	}
 
-	return c.changeStack(appName, appGuid, appInitialStack, appInitialState)
+	return c.change(appName, appGuid, appInitialStack, appInitialState)
 }
