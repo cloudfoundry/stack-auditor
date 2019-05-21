@@ -28,6 +28,7 @@ const (
 	ErrorRetrievingAPIVersion  = "problem retrieving cf api version"
 	ErrorCheckingZDTSupport    = "problem checking for ZDT support"
 	ErrorRestartingApp         = "problem restarting app"
+	ErrorZDTNotSupported       = "your CAPI version does not support a zero downtime restart"
 )
 
 type RequestData struct {
@@ -42,6 +43,7 @@ type Changer struct {
 	CF     cf.CF
 	Runner Runner
 	Log    func(writer io.Writer, msg string)
+	V3Flag bool
 }
 
 type Runner interface {
@@ -75,7 +77,21 @@ func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
 }
 
 func (c *Changer) change(appName, appGUID, stackName, appInitialState string) error {
-	err := c.assignTargetStack(appGUID, stackName)
+	version, err := c.GetAPIVersion()
+	if err != nil {
+		return errors.Wrap(err, ErrorRetrievingAPIVersion)
+	}
+
+	zdtExists, err := IsZDTSupported(version)
+	if err != nil {
+		return errors.Wrap(err, ErrorCheckingZDTSupport)
+	}
+
+	if !zdtExists && c.V3Flag {
+		return fmt.Errorf(ErrorZDTNotSupported)
+	}
+
+	err = c.assignTargetStack(appGUID, stackName)
 	if err != nil {
 		return errors.Wrap(err, ErrorChangingStack)
 	}
@@ -89,17 +105,7 @@ func (c *Changer) change(appName, appGUID, stackName, appInitialState string) er
 		return errors.Wrap(err, ErrorSettingDroplet)
 	}
 
-	version, err := c.GetAPIVersion()
-	if err != nil {
-		return errors.Wrap(err, ErrorRetrievingAPIVersion)
-	}
-
-	zdtExists, err := IsZDTSupported(version)
-	if err != nil {
-		return errors.Wrap(err, ErrorCheckingZDTSupport)
-	}
-
-	if zdtExists {
+	if zdtExists && c.V3Flag {
 		err = c.restartZDT(appName)
 	} else {
 		err = c.restartNonZDT(appName, appGUID)

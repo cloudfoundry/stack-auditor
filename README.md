@@ -23,7 +23,10 @@ cd $GOPATH/src/github.com/cloudfoundry/stack-auditor
 ## Usage
 
 Install the plugin with `cf install-plugin <path_to_binary>` or use the shell scripts `./scripts/install.sh` or `./scripts/reinstall.sh`.
-Audit cf applications using `cf audit-stack` and change stack association using `cf change-stack <org/space/app> <stack>`.
+
+* Audit cf applications using `cf audit-stack`
+* Change stack association using `cf change-stack <app> <stack> [--v3]`. Setting the `--v3` flag will attempt to perform a zero downtime restart.
+* Delete a stack using `cf delete-stack <stack> [--force | -f]`
 
 ## Run the Tests
 

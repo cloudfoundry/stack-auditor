@@ -70,7 +70,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 					defer cleanUpRoutines(breaker)
 				}
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
 				output, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(output)).To(ContainSubstring(changer.RestoringStateMsg, "STARTED"))
@@ -92,8 +92,9 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				PushAppAndConfirm(app, false)
 				defer app.Destroy()
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
 				out, err := cmd.CombinedOutput()
+
 				Expect(err).ToNot(HaveOccurred(), string(out))
 				Expect(string(out)).To(ContainSubstring(changer.RestoringStateMsg, "STOPPED"))
 
@@ -126,7 +127,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 					defer cleanUpRoutines(breaker)
 				}
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
 				out, err := cmd.CombinedOutput()
 				Expect(err).NotTo(HaveOccurred(), string(out))
 				Expect(string(out)).To(ContainSubstring("%s failed to stage on: %s.", app.Name, newStack))

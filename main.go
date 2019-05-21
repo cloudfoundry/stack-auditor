@@ -28,7 +28,8 @@ const (
 	AuditStackCmd    = "audit-stack"
 	ChangeStackCmd   = "change-stack"
 	DeleteStackCmd   = "delete-stack"
-	ChangeStackUsage = "Usage: cf change-stack <app> <stack> [--v3]"
+	V3CmdFlag        = "--v3"
+	ChangeStackUsage = "Usage: cf change-stack <app> <stack> [" + V3CmdFlag + "]"
 	ErrorMsg         = "a problem occurred: %v\n"
 )
 
@@ -78,8 +79,8 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		fmt.Println(info)
 
 	case ChangeStackCmd:
-		if len(args) != 3 && len(args) != 4 {
-			log.Fatalf("Incorrect number of arguments provided - %s\n", ChangeStackUsage)
+		if (len(args) != 3 && len(args) != 4) || (len(args) == 4 && args[3] != V3CmdFlag) {
+			log.Fatalf("Incorrect arguments provided - %s\n", ChangeStackUsage)
 		}
 
 		c := changer.Changer{
@@ -87,6 +88,12 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 				w.Write([]byte(msg))
 			},
 		}
+
+		v3Flag := len(args) > 3 && (args[3] == V3CmdFlag)
+		if v3Flag {
+			c.V3Flag = true
+		}
+
 		c.Runner = utils.Command{}
 
 		c.CF = cf.CF{
