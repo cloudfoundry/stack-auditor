@@ -129,10 +129,8 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
 				out, err := cmd.CombinedOutput()
-				Expect(err).NotTo(HaveOccurred(), string(out))
-				Expect(string(out)).To(ContainSubstring("%s failed to stage on: %s.", app.Name, newStack))
-				Expect(string(out)).To(ContainSubstring("Error: problem staging new droplet: app build failed."))
-				Expect(string(out)).To(ContainSubstring("Restaging on existing stack: %s", oldStack))
+				Expect(err).To(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorStaging, newStack))
 
 				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
 				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))

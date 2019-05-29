@@ -20,14 +20,9 @@ import (
 
 const (
 	AppAName   = "appA"
-	AppBName   = "appB"
 	AppAGuid   = "appAGuid"
-	AppBGuid   = "appBGuid"
 	StackAName = "stackA"
 	StackBName = "stackB"
-	StackAGuid = "stackAGuid"
-	StackBGuid = "stackBGuid"
-	NotAnApp   = "notAnApp"
 )
 
 //go:generate mockgen -source=changer.go -destination=mocks_test.go -package=changer_test
@@ -189,7 +184,7 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("there is an error changing stacks", func() {
+		when("there is an error changing stack metadata", func() {
 			it("returns a useful error message", func() {
 				errorMsg, err := mocks.FileToString("lifecycleV3Error.json")
 				Expect(err).ToNot(HaveOccurred())
@@ -203,17 +198,9 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 				mockConnection.EXPECT().ApiVersion().Return("99.99.99", nil).AnyTimes()
 
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
-					"curl",
-					"/v3/apps/"+AppAGuid,
-					"-X",
-					"PATCH",
-					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`,
-				)
-
 				_, err = c.ChangeStack(AppAName, StackBName)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(logMsg).To(ContainSubstring(changer.ErrorChangingStack))
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(changer.ErrorChangingStack, StackBName))
 			})
 		})
 
