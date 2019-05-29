@@ -204,6 +204,135 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
+		when("there is an error changing staging on the new stack", func() {
+			it("returns a useful error message", func() {
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"} } }`,
+				).Return([]string{}, nil)
+
+				mockConnection.EXPECT().ApiVersion().Return("0.0.1", nil)
+
+				errorMsg, err := mocks.FileToString("lifecycleV3Error.json")
+				Expect(err).ToNot(HaveOccurred())
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid+"/droplets/current",
+				).Return(errorMsg, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`,
+				).Return([]string{}, nil)
+
+				appABuildPost, err := mocks.FileToString("appAV3BuildPost.json")
+				Expect(err).ToNot(HaveOccurred())
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds",
+					"-X", "POST",
+					`-d='{"package": {"guid": ""} }'`,
+				).Return(appABuildPost, nil)
+
+				_, err = c.ChangeStack(AppAName, StackBName)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(changer.ErrorStaging, StackBName))
+			})
+		})
+
+		when("there is an error restarting on the new stack", func() {
+			it("returns a useful error message", func() {
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"} } }`,
+				).Return([]string{}, nil)
+
+				mockConnection.EXPECT().ApiVersion().Return("0.0.1", nil)
+
+				appADroplet, err := mocks.FileToString("appV3Droplet.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid+"/droplets/current",
+				).Return(appADroplet, nil)
+
+				appABuildPost, err := mocks.FileToString("appAV3BuildPost.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds",
+					"-X", "POST",
+					`-d='{"package": {"guid": "og-package-guid"} }'`,
+				).Return(appABuildPost, nil)
+
+				appABuildGet, err := mocks.FileToString("appAV3BuildGet.json")
+				Expect(err).ToNot(HaveOccurred())
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds/some-build-guid",
+				).Return(appABuildGet, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/relationships/current_droplet",
+					"-X", "PATCH",
+					`-d='{ "data": { "guid": "some-droplet-guid" } }'`,
+				).Return([]string{}, nil)
+
+				errorMsg, err := mocks.FileToString("lifecycleV3Error.json")
+				Expect(err).ToNot(HaveOccurred())
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/actions/restart",
+					"-X", "POST",
+				).Return(errorMsg, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid,
+					"-X",
+					"PATCH",
+					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`,
+				).Return([]string{}, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/relationships/current_droplet",
+					"-X", "PATCH",
+					`-d='{ "data": { "guid": "appADropletA" } }'`,
+				).Return([]string{}, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/builds",
+					"-X", "POST",
+					`-d='{"package": {"guid": "og-package-guid"} }'`,
+				).Return(appABuildPost, nil)
+
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/appAGuid/actions/restart",
+					"-X", "POST",
+				).Return([]string{}, nil)
+
+				_, err = c.ChangeStack(AppAName, StackBName)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(changer.ErrorRestartingApp, StackBName))
+			})
+		})
+
 		it("returns an error when given the stack that the app is on", func() {
 			_, err := c.ChangeStack(AppAName, StackAName)
 			Expect(err).To(MatchError("application is already associated with stack " + StackAName))
