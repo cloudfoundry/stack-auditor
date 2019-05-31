@@ -1,9 +1,9 @@
 module github.com/cloudfoundry/stack-auditor
 
 require (
-	code.cloudfoundry.org/cli v6.44.1+incompatible
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23
+	github.com/cloudfoundry/cli v6.44.1+incompatible
 	github.com/cloudfoundry/libbuildpack v0.0.0-20190115190946-c10a4cd29881
 	github.com/golang/mock v1.2.0
 	github.com/onsi/gomega v1.4.3

@@ -8,12 +8,12 @@ import (
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 
-	plugin_models "code.cloudfoundry.org/cli/plugin/models"
+	plugin_models "github.com/cloudfoundry/cli/plugin/models"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
 )
 
-//go:generate mockgen -package mocks -destination cli_connection.go code.cloudfoundry.org/cli/plugin CliConnection
+//go:generate mockgen -package mocks -destination cli_connection.go github.com/cloudfoundry/cli/plugin CliConnection
 var (
 	StackAName = "stackA"
 	StackBName = "stackB"

@@ -1,7 +1,5 @@
 package resources
 
-import "code.cloudfoundry.org/cli/plugin/models"
-
 type Orgs []plugin_models.GetOrgs_Model
 
 func (o Orgs) Map() map[string]string {

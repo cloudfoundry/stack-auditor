@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	plugin_models "code.cloudfoundry.org/cli/plugin/models"
+	plugin_models "github.com/cloudfoundry/cli/plugin/models"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 

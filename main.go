@@ -17,7 +17,7 @@ import (
 
 	"github.com/cloudfoundry/stack-auditor/auditor"
 
-	"code.cloudfoundry.org/cli/plugin"
+	"github.com/cloudfoundry/cli/plugin"
 )
 
 type StackAuditor struct {

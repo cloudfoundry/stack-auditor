@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	plugin_models "code.cloudfoundry.org/cli/plugin/models"
+	plugin_models "github.com/cloudfoundry/cli/plugin/models"
 
-	"code.cloudfoundry.org/cli/plugin"
+	"github.com/cloudfoundry/cli/plugin"
 	"github.com/cloudfoundry/stack-auditor/resources"
 )
 
