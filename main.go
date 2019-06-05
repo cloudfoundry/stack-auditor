@@ -61,6 +61,12 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		fmt.Println(info)
 
 	case DeleteStackCmd:
+		if len(args) < 2 {
+			err := errors.New("Incorrect number of arguments provided - Usage: cf delete-stack <stack>")
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			os.Exit(1)
+		}
+
 		forceFlag := len(args) > 2 && (args[2] == "--force" || args[2] == "-f")
 
 		if !forceFlag && !s.UI.ConfirmDelete(args[1]) {
