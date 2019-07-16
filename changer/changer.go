@@ -29,7 +29,7 @@ const (
 	ErrorRecoveringFromStaging        = "Problem recovering from staging error"
 	ErrorRecoveringFromRestart        = "Problem recovering from restart error"
 	ErrorRecoveringFromSettingDroplet = "Problem recovering from setting the droplet error"
-	ErrorZDTNotSupported              = "your CAPI version does not support a zero downtime restart"
+	ErrorZDTNotSupported              = "Your CAPI version does not support a zero downtime restart. Please remove --v3 flag and try again"
 	RestagingMsg                      = "Restaging on existing stack: %s\n"
 )
 

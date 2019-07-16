@@ -160,7 +160,10 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 				HelpText: "Change an app's stack in the current space and restart the app",
 
 				UsageDetails: plugin.Usage{
-					Usage: fmt.Sprintf("cf %s APP_NAME STACK_NAME", ChangeStackCmd),
+					Options: map[string]string{
+						"v3": fmt.Sprintf("Attempts to change stack with zero downtime (EXPERIMENTAL: This requires a minimum CAPI version of %s)", changer.V3ZDTCapiMinimum),
+					},
+					Usage: ChangeStackUsage,
 				},
 			},
 		},
