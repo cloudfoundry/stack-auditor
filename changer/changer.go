@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	AttemptingToChangeStackMsg        = "Attempting to change stack to %s for %s...\n\n"
-	ChangeStackSuccessMsg             = "Application %s was successfully changed to Stack %s"
-	AppStackAssociationError          = "application is already associated with stack %s"
-	V3ZDTCapiMinimum                  = "1.76.3" // The CAPI release version for PAS 2.5.0
-	RestoringStateMsg                 = "Restoring prior application state: %s"
-	ErrorChangingStack                = "problem assigning target stack to %s"
-	ErrorStaging                      = "problem staging new droplet on %s"
-	ErrorSettingDroplet               = "problem setting droplet on %s"
-	ErrorRestartingApp                = "problem restarting app on %s"
-	ErrorRetrievingAPIVersion         = "problem retrieving cf api version"
+	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n\n"
+	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
+	AppStackAssociationError   = "application is already associated with stack %s"
+	V3ZDTCCAPIMinimum          = "2.131.0" // This is cc-api version from capi-release v1.76.0, which ships with PAS 2.5
+	RestoringStateMsg          = "Restoring prior application state: %s"
+	ErrorChangingStack         = "problem assigning target stack to %s"
+	ErrorStaging               = "problem staging new droplet on %s"
+	ErrorSettingDroplet        = "problem setting droplet on %s"
+	ErrorRestartingApp         = "problem restarting app on %s"
+	ErrorRetrievingAPIVersion  = "problem retrieving cf api version"
 	ErrorCheckingZDTSupport           = "problem checking for ZDT support"
 	ErrorRecoveringFromStaging        = "Problem recovering from staging error"
 	ErrorRecoveringFromRestart        = "Problem recovering from restart error"
@@ -297,7 +297,7 @@ func parseNewStackDropletGUID(buildGetResp []string) (string, error) {
 }
 
 func IsZDTSupported(version string) (bool, error) {
-	limitSemver, _ := semver.Parse(V3ZDTCapiMinimum)
+	limitSemver, _ := semver.Parse(V3ZDTCCAPIMinimum)
 	CAPISemver, err := semver.Parse(version)
 	if err != nil {
 		return false, err

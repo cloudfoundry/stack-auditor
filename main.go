@@ -161,7 +161,7 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 
 				UsageDetails: plugin.Usage{
 					Options: map[string]string{
-						"v3": fmt.Sprintf("Attempts to change stack with zero downtime (EXPERIMENTAL: This requires a minimum CAPI version of %s)", changer.V3ZDTCapiMinimum),
+						"v3": fmt.Sprintf("Attempts to change stack with zero downtime (EXPERIMENTAL: This requires a minimum CAPI version of %s)", changer.V3ZDTCCAPIMinimum),
 					},
 					Usage: ChangeStackUsage,
 				},

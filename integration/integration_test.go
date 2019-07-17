@@ -70,7 +70,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 					defer cleanUpRoutines(breaker)
 				}
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				output, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(output)).To(ContainSubstring(changer.RestoringStateMsg, "STARTED"))
@@ -92,7 +92,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				PushAppAndConfirm(app, false)
 				defer app.Destroy()
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 
 				Expect(err).ToNot(HaveOccurred(), string(out))
@@ -127,7 +127,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 					defer cleanUpRoutines(breaker)
 				}
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred(), string(out))
 				Expect(string(out)).To(ContainSubstring(changer.ErrorStaging, newStack))
@@ -136,6 +136,30 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
 			})
 		})
+
+		when("the v3 flag is used but not supported", func() {
+			it.Before(func() {
+				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
+				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
+			})
+
+			it("prints an error message", func() {
+				PushAppAndConfirm(app, false)
+				defer app.Destroy()
+
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
+				out, err := cmd.CombinedOutput()
+
+				Expect(err).To(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorZDTNotSupported))
+			})
+		})
+
 	})
 
 	when.Pend("Audit Stack", func() {
