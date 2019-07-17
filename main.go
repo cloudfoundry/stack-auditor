@@ -30,6 +30,7 @@ const (
 	DeleteStackCmd   = "delete-stack"
 	V3CmdFlag        = "--v3"
 	ChangeStackUsage = "Usage: cf change-stack <app> <stack> [" + V3CmdFlag + "]"
+	AuditStackUsage  = "Usage: cf audit-stack [--json | --csv]"
 	ErrorMsg         = "a problem occurred: %v\n"
 )
 
@@ -54,6 +55,15 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 				Conn: cliConnection,
 			},
 		}
+
+		if len(args) > 1 && args[1] == "--json" {
+			a.OutputType = auditor.JSONFlag
+		} else if len(args) > 1 && args[1] == "--csv" {
+			a.OutputType = auditor.CSVFlag
+		} else if len(args) > 1 {
+			log.Fatalf("Incorrect arguments provided - %s\n", AuditStackUsage)
+		}
+
 		info, err := a.Audit()
 		if err != nil {
 			log.Fatalf(ErrorMsg, err)
@@ -144,7 +154,11 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 				HelpText: "List all apps with their stacks, orgs, and spaces",
 
 				UsageDetails: plugin.Usage{
-					Usage: fmt.Sprintf("cf %s", AuditStackCmd),
+					Options: map[string]string{
+						"-csv":  fmt.Sprintf("output results in csv format"),
+						"-json": fmt.Sprintf("output results in json format"),
+					},
+					Usage: AuditStackUsage,
 				},
 			},
 			{
@@ -161,7 +175,7 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 
 				UsageDetails: plugin.Usage{
 					Options: map[string]string{
-						"v3": fmt.Sprintf("Attempts to change stack with zero downtime (EXPERIMENTAL: This requires a minimum CAPI version of %s)", changer.V3ZDTCCAPIMinimum),
+						"-v3": fmt.Sprintf("Attempts to change stack with zero downtime (EXPERIMENTAL: This requires a minimum CAPI version of %s)", changer.V3ZDTCCAPIMinimum),
 					},
 					Usage: ChangeStackUsage,
 				},

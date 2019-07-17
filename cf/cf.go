@@ -22,8 +22,8 @@ const (
 	V3ResultsPerPage = 5000
 )
 
-func (cf *CF) GetAppsAndStacks() ([]string, error) {
-	var entries []string
+func (cf *CF) GetAppsAndStacks() (resources.Apps, error) {
+	var entries []resources.App
 
 	orgMap, spaceNameMap, spaceOrgMap, allApps, err := cf.getCFContext()
 	if err != nil {
@@ -37,7 +37,12 @@ func (cf *CF) GetAppsAndStacks() ([]string, error) {
 			stackName := app.Lifecycle.Data.Stack
 
 			orgName := orgMap[spaceOrgMap[app.Relationships.Space.Data.GUID]]
-			entries = append(entries, fmt.Sprintf("%s/%s/%s %s", orgName, spaceName, appName, stackName))
+			entries = append(entries, resources.App{
+				Space: spaceName,
+				Name:  appName,
+				Stack: stackName,
+				Org:   orgName,
+			})
 		}
 	}
 	return entries, nil

@@ -277,7 +277,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 }
 
 func PushAppAndConfirm(app *cutlass.App, start bool) {
-	Expect(app.Push()).To(Succeed(), fmt.Sprintf("App: %v", app))
+	Expect(app.Push()).To(Succeed(), fmt.Sprintf("Name: %v", app))
 	Eventually(func() ([]string, error) { return app.InstanceStates() }, 20*time.Second).Should(Equal([]string{"RUNNING"}))
 
 	if !start {
