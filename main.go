@@ -25,13 +25,14 @@ type StackAuditor struct {
 }
 
 const (
-	AuditStackCmd    = "audit-stack"
-	ChangeStackCmd   = "change-stack"
-	DeleteStackCmd   = "delete-stack"
-	V3CmdFlag        = "--v3"
-	ChangeStackUsage = "Usage: cf change-stack <app> <stack> [" + V3CmdFlag + "]"
-	AuditStackUsage  = "Usage: cf audit-stack [--json | --csv]"
-	ErrorMsg         = "a problem occurred: %v\n"
+	AuditStackCmd      = "audit-stack"
+	ChangeStackCmd     = "change-stack"
+	DeleteStackCmd     = "delete-stack"
+	V3CmdFlag          = "--v3"
+	ChangeStackUsage   = "Usage: cf change-stack <app> <stack> [" + V3CmdFlag + "]"
+	AuditStackUsage    = "Usage: cf audit-stack [--json | --csv]"
+	ErrorMsg           = "a problem occurred: %v\n"
+	IncorrectArguments = "Incorrect arguments provided - %s\n"
 )
 
 func main() {
@@ -56,12 +57,16 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 			},
 		}
 
+		if len(args) > 2 {
+			log.Fatalf(IncorrectArguments, AuditStackUsage)
+		}
+
 		if len(args) > 1 && args[1] == "--json" {
 			a.OutputType = auditor.JSONFlag
 		} else if len(args) > 1 && args[1] == "--csv" {
 			a.OutputType = auditor.CSVFlag
 		} else if len(args) > 1 {
-			log.Fatalf("Incorrect arguments provided - %s\n", AuditStackUsage)
+			log.Fatalf(IncorrectArguments, AuditStackUsage)
 		}
 
 		info, err := a.Audit()
