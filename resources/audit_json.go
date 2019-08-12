@@ -12,6 +12,7 @@ type App struct {
 	Space string `json:"space"`
 	Name  string `json:"name"`
 	Stack string `json:"stack"`
+	State string `json:"state"`
 }
 
 type Apps []App
@@ -53,17 +54,18 @@ func (a Apps) CSV() (string, error) {
 }
 
 func (a App) String() string {
-	return fmt.Sprintf("%s/%s/%s %s", a.Org, a.Space, a.Name, a.Stack)
+	return fmt.Sprintf("%s/%s/%s %s %s", a.Org, a.Space, a.Name, a.Stack, a.State)
 }
 
 func (a Apps) headers() []string {
-	return []string{"org", "space", "name", "stack"}
+	return []string{"org", "space", "name", "stack", "state"}
 }
 
 func (a Apps) values() [][]string {
 	var result [][]string
 	for _, app := range a {
-		result = append(result, []string{app.Org, app.Space, app.Name, app.Stack})
+		result = append(result, []string{app.Org, app.Space,
+			app.Name, app.Stack, app.State})
 	}
 
 	return result

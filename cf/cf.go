@@ -35,6 +35,7 @@ func (cf *CF) GetAppsAndStacks() (resources.Apps, error) {
 			appName := app.Name
 			spaceName := spaceNameMap[app.Relationships.Space.Data.GUID]
 			stackName := app.Lifecycle.Data.Stack
+			state := strings.ToLower(app.State)
 
 			orgName := orgMap[spaceOrgMap[app.Relationships.Space.Data.GUID]]
 			entries = append(entries, resources.App{
@@ -42,6 +43,7 @@ func (cf *CF) GetAppsAndStacks() (resources.Apps, error) {
 				Name:  appName,
 				Stack: stackName,
 				Org:   orgName,
+				State: state,
 			})
 		}
 	}

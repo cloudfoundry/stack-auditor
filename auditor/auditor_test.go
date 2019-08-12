@@ -25,6 +25,8 @@ const (
 	AppBPath   = OrgName + "/" + SpaceName + "/" + AppBName
 	StackAName = "stackA"
 	StackBName = "stackB"
+	AppAState  = "started"
+	AppBState  = "stopped"
 )
 
 func TestUnitAuditor(t *testing.T) {
@@ -61,8 +63,8 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 			result, err := a.Audit()
 			Expect(err).NotTo(HaveOccurred())
 
-			expectedResult := AppAPath + " " + StackAName + "\n" +
-				AppBPath + " " + StackBName + "\n"
+			expectedResult := AppAPath + " " + StackAName + " " + AppAState + "\n" +
+				AppBPath + " " + StackBName + " " + AppBState + "\n"
 			Expect(result).To(Equal(expectedResult))
 		})
 
@@ -77,12 +79,14 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 				Stack: StackAName,
 				Org:   OrgName,
 				Space: SpaceName,
+				State: AppAState,
 			},
 				resources.App{
 					Name:  AppBName,
 					Stack: StackBName,
 					Org:   OrgName,
 					Space: SpaceName,
+					State: AppBState,
 				})
 
 			expectedResult, err := json.Marshal(&apps)
@@ -96,10 +100,10 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 			result, err := a.Audit()
 			Expect(err).NotTo(HaveOccurred())
 
-			csvFmt := "%s,%s,%s,%s\n"
-			csvResult := `org,space,name,stack
-` + fmt.Sprintf(csvFmt, OrgName, SpaceName, AppAName, StackAName) +
-				fmt.Sprintf(csvFmt, OrgName, SpaceName, AppBName, StackBName)
+			csvFmt := "%s,%s,%s,%s,%s\n"
+			csvResult := `org,space,name,stack,state
+` + fmt.Sprintf(csvFmt, OrgName, SpaceName, AppAName, StackAName, AppAState) +
+				fmt.Sprintf(csvFmt, OrgName, SpaceName, AppBName, StackBName, AppBState)
 
 			Expect(result).To(Equal(csvResult))
 		})
