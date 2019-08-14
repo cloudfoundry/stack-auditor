@@ -7,21 +7,38 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudfoundry/stack-auditor/utils"
-
-	"github.com/cloudfoundry/stack-auditor/terminalUI"
-
+	"github.com/cloudfoundry/stack-auditor/auditor"
 	"github.com/cloudfoundry/stack-auditor/cf"
 	"github.com/cloudfoundry/stack-auditor/changer"
 	"github.com/cloudfoundry/stack-auditor/deleter"
-
-	"github.com/cloudfoundry/stack-auditor/auditor"
+	"github.com/cloudfoundry/stack-auditor/terminalUI"
+	"github.com/cloudfoundry/stack-auditor/utils"
 
 	"code.cloudfoundry.org/cli/plugin"
 )
 
+var tagVersion = "0.0.5"
+var pluginVersion plugin.VersionType
+
 type StackAuditor struct {
 	UI terminalUI.UIController
+}
+
+func init() {
+	var major, minor, patch int
+
+	_, err := fmt.Sscanf(tagVersion, "%d.%d.%d", &major, &minor, &patch)
+	if err != nil {
+		err := errors.New("problem setting version")
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		os.Exit(1)
+	}
+
+	pluginVersion = plugin.VersionType{
+		Major: major,
+		Minor: minor,
+		Build: patch,
+	}
 }
 
 const (
@@ -142,12 +159,8 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 
 func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 	return plugin.PluginMetadata{
-		Name: "StackAuditor",
-		Version: plugin.VersionType{
-			Major: 1,
-			Minor: 0,
-			Build: 0,
-		},
+		Name:    "StackAuditor",
+		Version: pluginVersion,
 		MinCliVersion: plugin.VersionType{
 			Major: 6,
 			Minor: 7,
