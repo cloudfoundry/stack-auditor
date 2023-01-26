@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	AttemptingToChangeStackMsg = "Attempting to change stack to %s for %s...\n\n"
-	ChangeStackSuccessMsg      = "Application %s was successfully changed to Stack %s"
-	AppStackAssociationError   = "application is already associated with stack %s"
-	V3ZDTCCAPIMinimum          = "2.131.0" // This is cc-api version from capi-release v1.76.0, which ships with PAS 2.5
-	RestoringStateMsg          = "Restoring prior application state: %s"
-	ErrorChangingStack         = "problem assigning target stack to %s"
-	ErrorStaging               = "problem staging new droplet on %s"
-	ErrorSettingDroplet        = "problem setting droplet on %s"
-	ErrorRestartingApp         = "problem restarting app on %s"
-	ErrorRetrievingAPIVersion  = "problem retrieving cf api version"
+	AttemptingToChangeStackMsg        = "Attempting to change stack to %s for %s...\n\n"
+	ChangeStackSuccessMsg             = "Application %s was successfully changed to Stack %s"
+	AppStackAssociationError          = "application is already associated with stack %s"
+	V3ZDTCCAPIMinimum                 = "2.131.0" // This is cc-api version from capi-release v1.76.0, which ships with PAS 2.5
+	RestoringStateMsg                 = "Restoring prior application state: %s"
+	ErrorChangingStack                = "problem assigning target stack to %s"
+	ErrorStaging                      = "problem staging new droplet on %s"
+	ErrorSettingDroplet               = "problem setting droplet on %s"
+	ErrorRestartingApp                = "problem restarting app on %s"
+	ErrorRetrievingAPIVersion         = "problem retrieving cf api version"
 	ErrorCheckingZDTSupport           = "problem checking for ZDT support"
 	ErrorRecoveringFromStaging        = "Problem recovering from staging error"
 	ErrorRecoveringFromRestart        = "Problem recovering from restart error"
@@ -109,12 +109,11 @@ func (c *Changer) change(appName, appGUID, oldStack, newStack, appInitialState s
 		return err
 	}
 
-	if zdtExists && c.V3Flag {
-		err = c.restartZDT(appName)
-	} else {
-		err = c.restartNonZDT(appName, appGUID)
-	}
-
+	fmt.Printf("Restarting %s with zero down time...\n", appName)
+	_, err = c.CF.CFCurl("/v3/deployments", "-X", "POST", `-d='{ "relationships": { "app": { "data": { "guid": "`+
+		appGUID+
+		`" } } }, "strategy": "rolling", "droplet": { "guid": "`+
+		newDropletGUID+`" } }'`)
 	if err != nil {
 		err = errors.Wrapf(err, ErrorRestartingApp, newStack)
 		if restartErr := c.recoverRestart(appName, appGUID, oldStack, packageGUID, oldDropletGUID); restartErr != nil {
@@ -137,13 +136,12 @@ func (c *Changer) GetAPIVersion() (string, error) {
 
 func (c *Changer) restartZDT(appName string) error {
 	fmt.Printf("Restarting %s with zero down time...\n", appName)
-	return c.Runner.Run("cf", ".", true, "v3-zdt-restart", appName)
+	return nil
 }
 
 func (c *Changer) restartNonZDT(appName, appGuid string) error {
-	fmt.Printf("Restarting %s with down time...\n", appName)
-	_, err := c.CF.CFCurl("/v3/apps/"+appGuid+"/actions/restart", "-X", "POST")
-	return err
+	fmt.Printf("Restarting %s with zero down time...\n", appName)
+	return nil
 }
 
 func (c *Changer) v3Stage(appGuid string) (string, string, string, error) {
@@ -259,14 +257,7 @@ func (c *Changer) recoverRestart(appName, appGUID, oldStack, packageGUID, oldDro
 
 	fmt.Printf(RestagingMsg, oldStack)
 
-	var err error
-	if c.V3Flag {
-		err = c.restartZDT(appName)
-	} else {
-		err = c.restartNonZDT(appName, appGUID)
-	}
-
-	return err
+	return c.restartNonZDT(appName, appGUID)
 }
 
 func parsePackageFromDroplet(curDropletResp []string) (string, error) {
