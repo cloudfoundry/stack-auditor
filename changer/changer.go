@@ -109,11 +109,8 @@ func (c *Changer) change(appName, appGUID, oldStack, newStack, appInitialState s
 		return err
 	}
 
-	fmt.Printf("Restarting %s with zero down time...\n", appName)
-	_, err = c.CF.CFCurl("/v3/deployments", "-X", "POST", `-d='{ "relationships": { "app": { "data": { "guid": "`+
-		appGUID+
-		`" } } }, "strategy": "rolling", "droplet": { "guid": "`+
-		newDropletGUID+`" } }'`)
+	err = c.Runner.Run("cf", ".", true, "restart", "--strategy", "rolling", appName)
+
 	if err != nil {
 		err = errors.Wrapf(err, ErrorRestartingApp, newStack)
 		if restartErr := c.recoverRestart(appName, appGUID, oldStack, packageGUID, oldDropletGUID); restartErr != nil {
@@ -134,14 +131,15 @@ func (c *Changer) GetAPIVersion() (string, error) {
 	return c.CF.Conn.ApiVersion()
 }
 
+//TODO: only use on of these restarts
 func (c *Changer) restartZDT(appName string) error {
 	fmt.Printf("Restarting %s with zero down time...\n", appName)
-	return nil
+	return c.Runner.Run("cf", ".", true, "restart", "--strategy", "rolling", appName)
 }
 
 func (c *Changer) restartNonZDT(appName, appGuid string) error {
 	fmt.Printf("Restarting %s with zero down time...\n", appName)
-	return nil
+	return c.Runner.Run("cf", ".", true, "restart", "--strategy", "rolling", appName)
 }
 
 func (c *Changer) v3Stage(appGuid string) (string, string, string, error) {

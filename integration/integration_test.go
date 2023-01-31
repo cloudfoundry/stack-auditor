@@ -127,6 +127,33 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
+		when("the app cannot run on the target stack", func() {
+			it.Before(func() {
+				app = cutlass.New(filepath.Join("testdata", "crashes_on_fs4_app"))
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Stack = oldStack
+				app.Disk = disk
+				app.Memory = memory
+			})
+
+			it("restarts itself on the old stack", func() {
+				PushAppAndConfirm(app, true)
+				defer app.Destroy()
+
+				//TODO: understand why we can't confirm zero down
+				// breaker := make(chan bool)
+				// go confirmZeroDowntime(app, breaker)
+				// defer cleanUpRoutines(breaker)
+
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				out, err := cmd.CombinedOutput()
+				Expect(err).To(HaveOccurred(), string(out))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorRestartingApp, newStack))
+
+				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
+				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
+			})
+		})
 	})
 
 	when.Pend("Audit Stack", func() {
