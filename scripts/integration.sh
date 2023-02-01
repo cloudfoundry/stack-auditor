@@ -7,7 +7,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 scripts/install.sh
 
 echo "Run Integration Tests"
-go test -timeout 0 ./integration/... -v -run Integration
+go test -timeout 0 ./integration/... -v -count=1 -run Integration
 exit_code=$?
 
 if [ "$exit_code" != "0" ]; then

@@ -63,7 +63,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				defer app.Destroy()
 
 				breaker := make(chan bool)
-				go confirmZeroDowntime(app, breaker)
+				go confirmZeroDowntime(app, breaker, "when the app was initially started it should change the stack and remain started")
 				defer cleanUpRoutines(breaker)
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
@@ -102,7 +102,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 		when("the app cannot stage on the target stack", func() {
 			it.Before(func() {
-				app = cutlass.New(filepath.Join("testdata", "fs2_only_app"))
+				app = cutlass.New(filepath.Join("testdata", "does_not_stage_on_fs4"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#master"}
 				app.Stack = oldStack
 				app.Disk = disk
@@ -114,7 +114,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				defer app.Destroy()
 
 				breaker := make(chan bool)
-				go confirmZeroDowntime(app, breaker)
+				go confirmZeroDowntime(app, breaker, "when the app cannot stage the target stack it restarts itself on the old stack")
 				defer cleanUpRoutines(breaker)
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
@@ -129,7 +129,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 
 		when("the app cannot run on the target stack", func() {
 			it.Before(func() {
-				app = cutlass.New(filepath.Join("testdata", "crashes_on_fs4_app"))
+				app = cutlass.New(filepath.Join("testdata", "does_not_run_on_fs4"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
 				app.Disk = disk
@@ -137,13 +137,14 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 
 			it("restarts itself on the old stack", func() {
+				fmt.Println("restart on old stack")
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
 				//TODO: understand why we can't confirm zero down
-				// breaker := make(chan bool)
-				// go confirmZeroDowntime(app, breaker)
-				// defer cleanUpRoutines(breaker)
+				breaker := make(chan bool)
+				go confirmZeroDowntime(app, breaker, "when the cannot run on the target stack it restarts itself on the old stack")
+				defer cleanUpRoutines(breaker)
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
@@ -151,7 +152,10 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				Expect(string(out)).To(ContainSubstring(changer.ErrorRestartingApp, newStack))
 
 				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
-				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
+				Eventually(func() (string, error) {
+					fmt.Println("eventually")
+					return app.GetBody("/")
+				}, 3*time.Minute).Should(ContainSubstring(appBody))
 			})
 		})
 	})
@@ -315,12 +319,15 @@ func CreateBuildpack(buildpackName, stackName string) error {
 	return cmd.Run()
 }
 
-func confirmZeroDowntime(app *cutlass.App, breaker chan bool) {
+func confirmZeroDowntime(app *cutlass.App, breaker chan bool, currentTest string) {
+	fmt.Println("test ->", currentTest)
 	for {
 		select {
 		case <-breaker:
+			fmt.Println("breaker was broken")
 			return
 		default:
+			fmt.Println("re-checking in cZD()")
 			body, err := app.GetBody("/")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(body).To(Equal(appBody))
