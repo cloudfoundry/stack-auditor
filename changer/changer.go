@@ -255,7 +255,7 @@ func (c *Changer) recoverRestart(appName, appGUID, oldStack, packageGUID, oldDro
 
 	fmt.Printf(RestagingMsg, oldStack)
 
-	return c.restartNonZDT(appName, appGUID)
+	return nil
 }
 
 func parsePackageFromDroplet(curDropletResp []string) (string, error) {

@@ -144,7 +144,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 				//TODO: understand why we can't confirm zero down
 				breaker := make(chan bool)
 				go confirmZeroDowntime(app, breaker, "when the cannot run on the target stack it restarts itself on the old stack")
-				defer cleanUpRoutines(breaker)
+				// defer cleanUpRoutines(breaker)
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
@@ -156,6 +156,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 					fmt.Println("eventually")
 					return app.GetBody("/")
 				}, 3*time.Minute).Should(ContainSubstring(appBody))
+				close(breaker)
 			})
 		})
 	})
