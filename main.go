@@ -45,8 +45,7 @@ const (
 	AuditStackCmd      = "audit-stack"
 	ChangeStackCmd     = "change-stack"
 	DeleteStackCmd     = "delete-stack"
-	V3CmdFlag          = "--v3"
-	ChangeStackUsage   = "Usage: cf change-stack <app> <stack> [" + V3CmdFlag + "]"
+	ChangeStackUsage   = "Usage: cf change-stack <app> <stack>"
 	AuditStackUsage    = "Usage: cf audit-stack [--json | --csv]"
 	ErrorMsg           = "a problem occurred: %v\n"
 	IncorrectArguments = "Incorrect arguments provided - %s\n"
@@ -117,7 +116,7 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 		fmt.Println(info)
 
 	case ChangeStackCmd:
-		if (len(args) != 3 && len(args) != 4) || (len(args) == 4 && args[3] != V3CmdFlag) {
+		if len(args) != 3 && len(args) != 4 {
 			log.Fatalf("Incorrect arguments provided - %s\n", ChangeStackUsage)
 		}
 
@@ -125,11 +124,6 @@ func (s *StackAuditor) Run(cliConnection plugin.CliConnection, args []string) {
 			Log: func(w io.Writer, msg string) {
 				w.Write([]byte(msg))
 			},
-		}
-
-		v3Flag := len(args) > 3 && (args[3] == V3CmdFlag)
-		if v3Flag {
-			c.V3Flag = true
 		}
 
 		c.Runner = utils.Command{}
@@ -162,8 +156,8 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 		Name:    "StackAuditor",
 		Version: pluginVersion,
 		MinCliVersion: plugin.VersionType{
-			Major: 6,
-			Minor: 7,
+			Major: 7,
+			Minor: 0,
 			Build: 0,
 		},
 		Commands: []plugin.Command{
@@ -192,9 +186,6 @@ func (s *StackAuditor) GetMetadata() plugin.PluginMetadata {
 				HelpText: "Change an app's stack in the current space and restart the app",
 
 				UsageDetails: plugin.Usage{
-					Options: map[string]string{
-						"-v3": fmt.Sprintf("Attempts to change stack with zero downtime (EXPERIMENTAL: This requires a minimum CAPI version of %s)", changer.V3ZDTCCAPIMinimum),
-					},
 					Usage: ChangeStackUsage,
 				},
 			},

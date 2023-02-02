@@ -4,8 +4,6 @@ go 1.19
 
 require (
 	code.cloudfoundry.org/cli v6.44.1+incompatible
-	github.com/blang/semver v3.5.1+incompatible
-	github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23
 	github.com/cloudfoundry/libbuildpack v0.0.0-20190115190946-c10a4cd29881
 	github.com/golang/mock v1.2.0
 	github.com/onsi/ginkgo/v2 v2.8.0
@@ -16,6 +14,7 @@ require (
 
 require (
 	github.com/Masterminds/semver v1.4.2 // indirect
+	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
