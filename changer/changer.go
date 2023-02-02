@@ -21,9 +21,8 @@ const (
 	V3ZDTCCAPIMinimum                 = "2.131.0" // This is cc-api version from capi-release v1.76.0, which ships with PAS 2.5
 	RestoringStateMsg                 = "Restoring prior application state: %s"
 	ErrorChangingStack                = "problem assigning target stack to %s"
-	ErrorStaging                      = "problem staging new droplet on %s"
 	ErrorSettingDroplet               = "problem setting droplet on %s"
-	ErrorRestartingApp                = "problem restarting app on %s"
+	ErrorRestagingApp                 = "problem restaging app on %s"
 	ErrorRetrievingAPIVersion         = "problem retrieving cf api version"
 	ErrorCheckingZDTSupport           = "problem checking for ZDT support"
 	ErrorRecoveringFromStaging        = "Problem recovering from staging error"
@@ -92,28 +91,12 @@ func (c *Changer) change(appName, appGUID, oldStack, newStack, appInitialState s
 		return errors.Wrapf(err, ErrorChangingStack, newStack)
 	}
 
-	newDropletGUID, oldDropletGUID, packageGUID, err := c.v3Stage(appGUID)
-	if err != nil {
-		err = errors.Wrapf(err, ErrorStaging, newStack)
-		if stagingErr := c.recoverStaging(appGUID, oldStack, packageGUID); stagingErr != nil {
-			err = errors.Wrap(err, ErrorRecoveringFromStaging)
-		}
-		return err
-	}
-
-	if err := c.v3SetDroplet(appGUID, newDropletGUID); err != nil {
-		err = errors.Wrapf(err, ErrorSettingDroplet, newStack)
-		if stagingErr := c.recoverStaging(appGUID, oldStack, packageGUID); stagingErr != nil {
-			err = errors.Wrap(err, ErrorRecoveringFromSettingDroplet)
-		}
-		return err
-	}
-
-	err = c.Runner.Run("cf", ".", true, "restart", "--strategy", "rolling", appName)
+	err = c.Runner.Run("cf", ".", true, "restage", "--strategy", "rolling", appName)
 
 	if err != nil {
-		err = errors.Wrapf(err, ErrorRestartingApp, newStack)
-		if restartErr := c.recoverRestart(appName, appGUID, oldStack, packageGUID, oldDropletGUID); restartErr != nil {
+		err = errors.Wrapf(err, ErrorRestagingApp, newStack)
+		// if restartErr := c.recoverRestart(appName, appGUID, oldStack, packageGUID, oldDropletGUID); restartErr != nil {
+		if restartErr := c.assignTargetStack(appGUID, oldStack); restartErr != nil {
 			err = errors.Wrap(err, ErrorRecoveringFromRestart)
 		}
 		return err

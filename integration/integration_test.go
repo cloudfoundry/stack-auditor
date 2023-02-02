@@ -93,7 +93,7 @@ var _ = Describe("Integration", func() {
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred(), string(out))
-				Expect(string(out)).To(ContainSubstring(changer.ErrorStaging, newStack))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorRestagingApp, newStack))
 
 				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
 				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
@@ -118,7 +118,7 @@ var _ = Describe("Integration", func() {
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred(), string(out))
-				Expect(string(out)).To(ContainSubstring(changer.ErrorRestartingApp, newStack))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorRestagingApp, newStack))
 
 				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
 				Eventually(func() (string, error) {
