@@ -3,7 +3,6 @@ package changer_test
 import (
 	"fmt"
 	"io"
-	"testing"
 
 	plugin_models "code.cloudfoundry.org/cli/plugin/models"
 
@@ -14,9 +13,8 @@ import (
 	"github.com/cloudfoundry/stack-auditor/mocks"
 
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/spec"
-	"github.com/sclevine/spec/report"
 )
 
 const (
@@ -36,15 +34,9 @@ var (
 	logMsg         string
 )
 
-func TestUnitChanger(t *testing.T) {
-	spec.Run(t, "Changer", testChanger, spec.Report(report.Terminal{}))
-}
-
-func testChanger(t *testing.T, when spec.G, it spec.S) {
-	it.Before(func() {
-		RegisterTestingT(t)
-
-		mockCtrl = gomock.NewController(t)
+var _ = Describe("Changer", func() {
+	BeforeEach(func() {
+		mockCtrl = gomock.NewController(GinkgoT())
 		mockConnection = mocks.SetupMockCliConnection(mockCtrl)
 		mockRunner = NewMockRunner(mockCtrl)
 
@@ -66,12 +58,12 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 
 	})
 
-	it.After(func() {
+	AfterEach(func() {
 		mockCtrl.Finish()
 	})
 
-	when("running change-stack", func() {
-		it("starts the app after changing stacks", func() {
+	When("running change-stack", func() {
+		It("starts the app after changing stacks", func() {
 			mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 				"curl",
 				"/v3/apps/"+AppAGuid,
@@ -94,8 +86,8 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			Expect(result).To(Equal(fmt.Sprintf(changer.ChangeStackSuccessMsg, AppAName, StackBName)))
 		})
 
-		when("there is an error changing stack metadata", func() {
-			it("returns a useful error message", func() {
+		When("there is an error changing stack metadata", func() {
+			It("returns a useful error message", func() {
 				errorMsg, err := mocks.FileToString("lifecycleV3Error.json")
 				Expect(err).ToNot(HaveOccurred())
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
@@ -112,8 +104,8 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("there is an error changing staging on the new stack", func() {
-			it("returns a useful error message", func() {
+		When("there is an error changing staging on the new stack", func() {
+			It("returns a useful error message", func() {
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"curl",
 					"/v3/apps/"+AppAGuid,
@@ -139,9 +131,9 @@ func testChanger(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		it("returns an error when given the stack that the app is on", func() {
+		It("returns an error when given the stack that the app is on", func() {
 			_, err := c.ChangeStack(AppAName, StackAName)
 			Expect(err).To(MatchError("application is already associated with stack " + StackAName))
 		})
 	})
-}
+})

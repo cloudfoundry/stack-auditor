@@ -9,7 +9,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.8.0
 	github.com/onsi/gomega v1.25.0
 	github.com/pkg/errors v0.8.1
-	github.com/sclevine/spec v1.2.0
 )
 
 require (
