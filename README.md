@@ -31,6 +31,10 @@ Install the plugin with `cf install-plugin <path_to_binary>` or use the shell sc
 
 ## Run the Tests
 
-Target a cloudfoundry and run:
+Target a cloudfoundry with the following prerequisites:
+  - has cflinuxfs3 and cflinuxfs4 available
+  - you are targeting an org and a space
 
-`./scripts/all-tests.sh` 
+Then run:
+
+`./scripts/all-tests.sh`
