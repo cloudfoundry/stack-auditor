@@ -27,7 +27,7 @@ const (
 	memory        = "128M"
 )
 
-var _ = Describe("Integration", func() {
+var _ = Describe("Integration", Label("integration"), func() {
 	When("Change Stack", func() {
 		When("the app was initially started", func() {
 			It("should change the stack and remain started", func() {
