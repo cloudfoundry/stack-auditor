@@ -1,13 +1,13 @@
 package changer_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
 	plugin_models "code.cloudfoundry.org/cli/plugin/models"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
-	"github.com/pkg/errors"
 
 	"github.com/cloudfoundry/stack-auditor/changer"
 	"github.com/cloudfoundry/stack-auditor/mocks"

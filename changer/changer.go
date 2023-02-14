@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
-
 	"github.com/cloudfoundry/stack-auditor/cf"
 )
 
@@ -59,15 +57,15 @@ func (c *Changer) ChangeStack(appName, newStack string) (string, error) {
 func (c *Changer) change(appName, appGUID, oldStack, newStack, appInitialState string) error {
 	err := c.assignTargetStack(appGUID, newStack)
 	if err != nil {
-		return errors.Wrapf(err, ErrorChangingStack, newStack)
+		return fmt.Errorf(ErrorChangingStack+": %w", newStack, err)
 	}
 
 	err = c.Runner.Run("cf", ".", true, "restage", "--strategy", "rolling", appName)
 
 	if err != nil {
-		err = errors.Wrapf(err, ErrorRestagingApp, newStack)
+		err = fmt.Errorf(ErrorRestagingApp+": %w", newStack, err)
 		if restartErr := c.assignTargetStack(appGUID, oldStack); restartErr != nil {
-			err = errors.Wrapf(err, ErrorChangingStack, oldStack)
+			err = fmt.Errorf(ErrorChangingStack+": %w", oldStack, err)
 		}
 		return err
 	}
