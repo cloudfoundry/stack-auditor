@@ -3,7 +3,6 @@ package auditor_test
 import (
 	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/cloudfoundry/stack-auditor/resources"
 
@@ -11,9 +10,8 @@ import (
 	"github.com/cloudfoundry/stack-auditor/cf"
 	"github.com/cloudfoundry/stack-auditor/mocks"
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/spec"
-	"github.com/sclevine/spec/report"
 )
 
 const (
@@ -29,21 +27,15 @@ const (
 	AppBState  = "stopped"
 )
 
-func TestUnitAuditor(t *testing.T) {
-	spec.Run(t, "Audit", testAudit, spec.Report(report.Terminal{}))
-}
-
-func testAudit(t *testing.T, when spec.G, it spec.S) {
-
+var _ = Describe("Auditor", func() {
 	var (
 		mockCtrl       *gomock.Controller
 		mockConnection *mocks.MockCliConnection
 		a              auditor.Auditor
 	)
 
-	it.Before(func() {
-		RegisterTestingT(t)
-		mockCtrl = gomock.NewController(t)
+	BeforeEach(func() {
+		mockCtrl = gomock.NewController(GinkgoT())
 
 		mockConnection = mocks.SetupMockCliConnection(mockCtrl)
 
@@ -54,12 +46,12 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 		}
 	})
 
-	it.After(func() {
+	AfterEach(func() {
 		mockCtrl.Finish()
 	})
 
-	when("running audit-stack", func() {
-		it("Verify that cf returns the correct stack associations", func() {
+	When("running audit-stack", func() {
+		It("Verify that cf returns the correct stack associations", func() {
 			result, err := a.Audit()
 			Expect(err).NotTo(HaveOccurred())
 
@@ -68,7 +60,7 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 			Expect(result).To(Equal(expectedResult))
 		})
 
-		it("Outputs json format when the used provides the --json flag", func() {
+		It("Outputs json format when the used provides the --json flag", func() {
 			a.OutputType = auditor.JSONFlag
 			result, err := a.Audit()
 			Expect(err).NotTo(HaveOccurred())
@@ -95,7 +87,7 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 			Expect(result).To(Equal(string(expectedResult)))
 		})
 
-		it("Outputs csv format when the used provides the --csv flag", func() {
+		It("Outputs csv format when the used provides the --csv flag", func() {
 			a.OutputType = auditor.CSVFlag
 			result, err := a.Audit()
 			Expect(err).NotTo(HaveOccurred())
@@ -108,4 +100,4 @@ func testAudit(t *testing.T, when spec.G, it spec.S) {
 			Expect(result).To(Equal(csvResult))
 		})
 	})
-}
+})

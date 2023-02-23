@@ -1,4 +1,4 @@
-package integration
+package integration_test
 
 import (
 	"encoding/json"
@@ -8,87 +8,57 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"testing"
 	"time"
 
-	"github.com/cloudfoundry/stack-auditor/changer"
-
 	"github.com/cloudfoundry/libbuildpack/cutlass"
-
-	"github.com/sclevine/spec/report"
-
+	"github.com/cloudfoundry/stack-auditor/changer"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/spec"
 )
 
 const (
-	oldStack            = "cflinuxfs2"
-	newStack            = "cflinuxfs3"
-	fakeStack           = "fakeStack"
-	fakeBuildpack       = "fakeBuildpack"
-	oldStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 14.04)"
-	newStackDescription = "Cloud Foundry Linux-based filesystem (Ubuntu 18.04)"
-	appBody             = "Hello World!"
-	duration            = 90 * time.Second
-	interval            = 100 * time.Millisecond
-	disk                = "128M"
-	memory              = "128M"
+	oldStack      = "cflinuxfs3"
+	newStack      = "cflinuxfs4"
+	fakeStack     = "fakeStack"
+	fakeBuildpack = "fakeBuildpack"
+	appBody       = "Hello World!"
+	interval      = 100 * time.Millisecond
+	disk          = "128M"
+	memory        = "128M"
 )
 
-func TestIntegrationStackAuditor(t *testing.T) {
-	spec.Run(t, "Integration", testIntegration, spec.Report(report.Terminal{}))
-}
-
-func testIntegration(t *testing.T, when spec.G, it spec.S) {
-	it.Before(func() {
-		RegisterTestingT(t)
-	})
-
-	when("Change Stack", func() {
-		var (
-			app *cutlass.App
-		)
-
-		when("the app was initially started", func() {
-			it.Before(func() {
-				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
-				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+var _ = Describe("Integration", Label("integration"), func() {
+	When("Change Stack", func() {
+		When("the app was initially started", func() {
+			It("should change the stack and remain started", func() {
+				app := cutlass.New(filepath.Join("testdata", "simple_app"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
 				app.Disk = disk
 				app.Memory = memory
-			})
 
-			it("should change the stack and remain started", func() {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
-				if supportsZDT() {
-					breaker := make(chan bool)
-					go confirmZeroDowntime(app, breaker)
-					defer cleanUpRoutines(breaker)
-				}
+				breaker := make(chan bool)
+				go confirmZeroDowntime(app, breaker)
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				output, err := cmd.CombinedOutput()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(output)).To(ContainSubstring(changer.RestoringStateMsg, "STARTED"))
+				close(breaker)
 			})
 		})
 
-		when("the app was initially stopped", func() {
-			it.Before(func() {
-				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
-				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+		When("the app was initially stopped", func() {
+			It("it should change the stack and remain stopped", func() {
+				app := cutlass.New(filepath.Join("testdata", "simple_app"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
 				app.Disk = disk
 				app.Memory = memory
-			})
 
-			it("it should change the stack and remain stopped", func() {
 				PushAppAndConfirm(app, false)
 				defer app.Destroy()
 
@@ -106,63 +76,60 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("the app cannot stage on the target stack", func() {
-			it.Before(func() {
-				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
-				app = cutlass.New(filepath.Join("testdata", "fs2_only_app"))
+		When("the app cannot stage on the target stack", func() {
+			It("restarts itself on the old stack", func() {
+				app := cutlass.New(filepath.Join("testdata", "does_not_stage_on_fs4"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#master"}
 				app.Stack = oldStack
 				app.Disk = disk
 				app.Memory = memory
-			})
 
-			it("restarts itself on the old stack", func() {
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
-				if supportsZDT() {
-					breaker := make(chan bool)
-					go confirmZeroDowntime(app, breaker)
-					defer cleanUpRoutines(breaker)
-				}
+				breaker := make(chan bool)
+				go confirmZeroDowntime(app, breaker)
 
 				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred(), string(out))
-				Expect(string(out)).To(ContainSubstring(changer.ErrorStaging, newStack))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorRestagingApp, newStack))
 
 				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
 				Eventually(func() (string, error) { return app.GetBody("/") }, 3*time.Minute).Should(ContainSubstring(appBody))
+				close(breaker)
 			})
 		})
 
-		when("the v3 flag is used but not supported", func() {
-			it.Before(func() {
-				Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-				Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
-				app = cutlass.New(filepath.Join("testdata", "simple_app"))
+		When("the app cannot run on the target stack", func() {
+			It("restarts itself on the old stack", func() {
+				app := cutlass.New(filepath.Join("testdata", "does_not_run_on_fs4"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
 				app.Disk = disk
 				app.Memory = memory
-			})
 
-			it("prints an error message", func() {
-				PushAppAndConfirm(app, false)
+				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
-				cmd := exec.Command("cf", "change-stack", app.Name, newStack, "--v3")
-				out, err := cmd.CombinedOutput()
+				breaker := make(chan bool)
+				go confirmZeroDowntime(app, breaker)
 
+				cmd := exec.Command("cf", "change-stack", app.Name, newStack)
+				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred(), string(out))
-				Expect(string(out)).To(ContainSubstring(changer.ErrorZDTNotSupported))
+				Expect(string(out)).To(ContainSubstring(changer.ErrorRestagingApp, newStack))
+
+				// need to do this because change-stack execution completes while the app is still starting up, otherwise there's a 404
+				Eventually(func() (string, error) {
+					return app.GetBody("/")
+				}, 3*time.Minute).Should(ContainSubstring(appBody))
+				close(breaker)
 			})
 		})
-
 	})
 
-	when.Pend("Audit Stack", func() {
+	PWhen("Audit Stack", func() {
 		//const appCount = cf.V3ResultsPerPage + 1 TODO:// Fix this to test multi-page results
 		const appCount = 10
 		var (
@@ -172,9 +139,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			stacks             = []string{oldStack, newStack}
 		)
 
-		it.Before(func() {
-			Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-			Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+		BeforeEach(func() {
 			orgName, spaceName, err = GetOrgAndSpace()
 			Expect(err).ToNot(HaveOccurred())
 
@@ -195,7 +160,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			wg.Wait()
 		})
 
-		it.After(func() {
+		AfterEach(func() {
 			for _, app := range apps {
 				Expect(app.Destroy()).To(Succeed())
 			}
@@ -203,7 +168,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			Expect(cmd.Run()).To(Succeed())
 		})
 
-		it("prints all apps with their orgs spaces and stacks", func() {
+		It("prints all apps with their orgs spaces and stacks", func() {
 			cmd := exec.Command("cf", "audit-stack")
 			output, err := cmd.Output()
 			Expect(err).NotTo(HaveOccurred())
@@ -214,39 +179,37 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 		})
 	})
 
-	when("Delete Stack", func() {
-		it.Before(func() {
-			Expect(CreateStack(fakeStack, oldStackDescription)).To(Succeed())
-			Expect(CreateStack(oldStack, oldStackDescription)).To(Succeed())
-			Expect(CreateStack(newStack, newStackDescription)).To(Succeed())
+	When("Delete Stack", func() {
+		BeforeEach(func() {
+			Expect(CreateStack(fakeStack, "fake stack")).To(Succeed())
 		})
 
-		it("should delete the stack", func() {
+		It("should delete the stack", func() {
 			cmd := exec.Command("cf", "delete-stack", fakeStack, "-f")
 			output, err := cmd.CombinedOutput()
 			Expect(err).NotTo(HaveOccurred(), string(output))
 			Expect(string(output)).To(ContainSubstring(fmt.Sprintf("%s has been deleted", fakeStack)))
 		})
 
-		when("an app is using the stack", func() {
+		When("an app is using the stack", func() {
 			var (
 				app *cutlass.App
 			)
 
-			it.Before(func() {
+			BeforeEach(func() {
 				app = cutlass.New(filepath.Join("testdata", "simple_app"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
 				app.Stack = oldStack
 			})
 
-			it.After(func() {
+			AfterEach(func() {
 				if app != nil {
 					Expect(app.Destroy()).To(Succeed())
 				}
 				app = nil
 			})
 
-			it("fails to delete the stack", func() {
+			It("fails to delete the stack", func() {
 				PushAppAndConfirm(app, true)
 				cmd := exec.Command("cf", "delete-stack", oldStack, "-f")
 				out, err := cmd.CombinedOutput()
@@ -255,17 +218,19 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("a buildpack is using the stack", func() {
-			it.Before(func() {
+		When("a buildpack is using the stack", func() {
+			BeforeEach(func() {
 				Expect(CreateBuildpack(fakeBuildpack, fakeStack)).To(Succeed())
 			})
-			it.After(func() {
+
+			AfterEach(func() {
 				cmd := exec.Command("cf", "delete-buildpack", fakeBuildpack, "-f")
 				Expect(cmd.Run()).To(Succeed())
 				cmd = exec.Command("cf", "delete-stack", fakeStack, "-f")
 				Expect(cmd.Run()).To(Succeed())
 			})
-			it("fails to delete the stack", func() {
+
+			It("fails to delete the stack", func() {
 				cmd := exec.Command("cf", "delete-stack", fakeStack, "-f")
 				out, err := cmd.CombinedOutput()
 				Expect(err).To(HaveOccurred())
@@ -273,8 +238,7 @@ func testIntegration(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 	})
-
-}
+})
 
 func PushAppAndConfirm(app *cutlass.App, start bool) {
 	Expect(app.Push()).To(Succeed(), fmt.Sprintf("Name: %v", app))
@@ -325,17 +289,8 @@ func CreateBuildpack(buildpackName, stackName string) error {
 	return cmd.Run()
 }
 
-func supportsZDT() bool {
-	version, err := cutlass.ApiVersion()
-	Expect(err).NotTo(HaveOccurred())
-
-	ok, err := changer.IsZDTSupported(version)
-	Expect(err).NotTo(HaveOccurred())
-
-	return ok
-}
-
 func confirmZeroDowntime(app *cutlass.App, breaker chan bool) {
+	defer GinkgoRecover()
 	for {
 		select {
 		case <-breaker:
@@ -347,8 +302,4 @@ func confirmZeroDowntime(app *cutlass.App, breaker chan bool) {
 			time.Sleep(interval)
 		}
 	}
-}
-
-func cleanUpRoutines(breaker chan bool) {
-	breaker <- true
 }
