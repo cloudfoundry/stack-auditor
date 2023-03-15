@@ -25,14 +25,14 @@ cd $GOPATH/src/github.com/cloudfoundry/stack-auditor
 Install the plugin with `cf install-plugin <path_to_binary>` or use the shell scripts `./scripts/install.sh` or `./scripts/reinstall.sh`.
 
 * Audit cf applications using `cf audit-stack [--csv | --json]`. These optional flags return csv or json format instead of plain text.
-* Change stack association using `cf change-stack <app> <stack> [--v3]`. Setting the `--v3` flag will attempt to perform a zero downtime restart. Make sure to target the space that contains the app you want to re-associate. 
-**NOTE** The `--v3` flag is experimental.
+* Change stack association using `cf change-stack <app> <stack>`. This will attempt to perform a zero downtime restart. Make sure to target the space that contains the app you want to re-associate. 
 * Delete a stack using `cf delete-stack <stack> [--force | -f]`
 
 ## Run the Tests
 
 Target a cloudfoundry with the following prerequisites:
-  - has cflinuxfs3 and cflinuxfs4 available
+  - has cflinuxfs3 and cflinuxfs4 stacks and buildpacks
+    - If using cf-deployment, this can be enabled with the ops file `operations/experimental/add-cflinuxfs4.yml`
   - you are targeting an org and a space
 
 Then run:
