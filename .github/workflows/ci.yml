@@ -19,9 +19,9 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: 1.20
+        go-version: '1.20'
 
     - name: Run Test
       run: |
-        go install github.com/onsi/ginkgo/v2/ginkgo@v2
+        go build
         ginkgo -r -v --label-filter="!integration"
