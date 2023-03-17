@@ -23,5 +23,5 @@ jobs:
 
     - name: Run Test
       run: |
-        go build
+        go install github.com/onsi/ginkgo/v2/ginkgo@v2
         ginkgo -r -v --label-filter="!integration"
