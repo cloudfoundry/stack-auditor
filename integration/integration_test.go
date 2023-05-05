@@ -79,7 +79,7 @@ var _ = Describe("Integration", Label("integration"), func() {
 		When("the app cannot stage on the target stack", func() {
 			It("restarts itself on the old stack", func() {
 				app := cutlass.New(filepath.Join("testdata", "does_not_stage_on_fs4"))
-				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#master"}
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 				app.Stack = oldStack
 				app.Disk = disk
 				app.Memory = memory
