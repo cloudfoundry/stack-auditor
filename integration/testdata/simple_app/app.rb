@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-
 require 'webrick'
 
 server = WEBrick::HTTPServer.new :Port => ENV['PORT']

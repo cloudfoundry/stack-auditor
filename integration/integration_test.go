@@ -23,8 +23,6 @@ const (
 	fakeBuildpack = "fakeBuildpack"
 	appBody       = "Hello World!"
 	interval      = 100 * time.Millisecond
-	disk          = "128M"
-	memory        = "128M"
 )
 
 var _ = Describe("Integration", Label("integration"), func() {
@@ -32,11 +30,9 @@ var _ = Describe("Integration", Label("integration"), func() {
 		When("the app was initially started", func() {
 			It("should change the stack and remain started", func() {
 				app := cutlass.New(filepath.Join("testdata", "simple_app"))
-				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 				app.Stack = oldStack
-				app.Disk = disk
-				app.Memory = memory
-
+	
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
 
@@ -54,10 +50,8 @@ var _ = Describe("Integration", Label("integration"), func() {
 		When("the app was initially stopped", func() {
 			It("it should change the stack and remain stopped", func() {
 				app := cutlass.New(filepath.Join("testdata", "simple_app"))
-				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 				app.Stack = oldStack
-				app.Disk = disk
-				app.Memory = memory
 
 				PushAppAndConfirm(app, false)
 				defer app.Destroy()
@@ -81,8 +75,6 @@ var _ = Describe("Integration", Label("integration"), func() {
 				app := cutlass.New(filepath.Join("testdata", "does_not_stage_on_fs4"))
 				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 				app.Stack = oldStack
-				app.Disk = disk
-				app.Memory = memory
 
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
@@ -104,10 +96,8 @@ var _ = Describe("Integration", Label("integration"), func() {
 		When("the app cannot run on the target stack", func() {
 			It("restarts itself on the old stack", func() {
 				app := cutlass.New(filepath.Join("testdata", "does_not_run_on_fs4"))
-				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 				app.Stack = oldStack
-				app.Disk = disk
-				app.Memory = memory
 
 				PushAppAndConfirm(app, true)
 				defer app.Destroy()
@@ -149,8 +139,6 @@ var _ = Describe("Integration", Label("integration"), func() {
 				apps[i] = cutlass.New(filepath.Join("testdata", "simple_app"))
 				apps[i].Stack = stacks[i%len(stacks)]
 				apps[i].Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
-				apps[i].Memory = memory
-				apps[i].Disk = disk
 
 				go func(i int) { // Maybe use a worker pool to not bombard our api
 					defer wg.Done()
@@ -198,7 +186,7 @@ var _ = Describe("Integration", Label("integration"), func() {
 
 			BeforeEach(func() {
 				app = cutlass.New(filepath.Join("testdata", "simple_app"))
-				app.Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				app.Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 				app.Stack = oldStack
 			})
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env ruby
-
 require 'webrick'
 
 raise unless File.readlines('/etc/os-release').grep(/Bionic/).any?
