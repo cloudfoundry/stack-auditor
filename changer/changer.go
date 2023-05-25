@@ -14,6 +14,7 @@ const (
 	RestoringStateMsg          = "Restoring prior application state: %s"
 	ErrorChangingStack         = "problem assigning target stack to %s"
 	ErrorRestagingApp          = "problem restaging app on %s"
+	ErrorRestoringState        = "problem restoring application state to %s"
 )
 
 type RequestData struct {
@@ -66,6 +67,9 @@ func (c *Changer) change(appName, appGUID, oldStack, newStack, appInitialState s
 		err = fmt.Errorf(ErrorRestagingApp+": %w", newStack, err)
 		if restartErr := c.assignTargetStack(appGUID, oldStack); restartErr != nil {
 			err = fmt.Errorf(ErrorChangingStack+": %w", oldStack, err)
+		}
+		if restoreErr := c.restoreAppState(appGUID, appInitialState); restoreErr != nil {
+			err = fmt.Errorf(ErrorRestoringState+": %w", appInitialState, err)
 		}
 		return err
 	}
