@@ -20,6 +20,8 @@ import (
 const (
 	AppAName   = "appA"
 	AppAGuid   = "appAGuid"
+	AppBName   = "appB"
+	AppBGuid   = "appBGuid"
 	StackAName = "stackA"
 	StackBName = "stackB"
 )
@@ -125,9 +127,50 @@ var _ = Describe("Changer", func() {
 					`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`,
 				).Return([]string{}, nil)
 
+				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+					"curl",
+					"/v3/apps/"+AppAGuid+"/actions/start",
+					"-X",
+					"POST",
+				).Return([]string{}, nil)
+
 				_, err := c.ChangeStack(AppAName, StackBName)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(changer.ErrorRestagingApp, StackBName))
+			})
+
+			When("the app is stopped", func() {
+				It("restores the app state", func() {
+					mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+						"curl",
+						"/v3/apps/"+AppBGuid,
+						"-X",
+						"PATCH",
+						`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackAName+`"} } }`,
+					).Return([]string{}, nil)
+
+					restageError := errors.New("restage failed")
+					mockRunner.EXPECT().Run("cf", ".", true, "restage", "--strategy", "rolling", AppBName).Return(restageError)
+
+					mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+						"curl",
+						"/v3/apps/"+AppBGuid,
+						"-X",
+						"PATCH",
+						`-d={"lifecycle":{"type":"buildpack", "data": {"stack":"`+StackBName+`"} } }`,
+					).Return([]string{}, nil)
+
+					mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
+						"curl",
+						"/v3/apps/"+AppBGuid+"/actions/stop",
+						"-X",
+						"POST",
+					).Return([]string{}, nil)
+
+					_, err := c.ChangeStack(AppBName, StackAName)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(changer.ErrorRestagingApp, StackAName))
+				})
 			})
 		})
 
