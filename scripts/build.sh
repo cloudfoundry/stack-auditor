@@ -11,7 +11,7 @@ if [[ -z "$version" ]]; then #version not provided, use latest git tag
     version=${git_tag:1}
 fi
 
-CGO_ENABLED=0
+export CGO_ENABLED=0
 if [[ -n "$buildall" ]]; then
     GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.tagVersion=$version" -o build/stack-auditor-linux-64 github.com/cloudfoundry/stack-auditor
     GOOS=linux GOARCH=386 go build -ldflags="-s -w -X main.tagVersion=$version" -o build/stack-auditor-linux-32 github.com/cloudfoundry/stack-auditor
