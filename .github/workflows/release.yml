@@ -65,7 +65,7 @@ jobs:
     needs: prepare-release
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: linux
@@ -106,8 +106,13 @@ jobs:
           CGO_ENABLED: 0
         run: |
           output_name="stack-auditor-${{ matrix.os }}-${{ matrix.suffix }}"
+          git_tag=${{ needs.prepare-release.outputs.release_version }}
+          version=${git_tag:1}
           echo "::group::Building for ${{ matrix.os }}-${{ matrix.arch }}"
-          go build -v -trimpath -ldflags="-s -w" -o "dist/$output_name" .
+          go build -v -trimpath \
+            -ldflags="-s -w" \
+            -X main.tagVersion=${version:?} \
+            -o "dist/${output_name}" .
           echo "::endgroup::"
 
       - name: Upload artifact
@@ -126,6 +131,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Create and push git tag
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ needs.prepare-release.outputs.release_version }}"
+          git push origin "${{ needs.prepare-release.outputs.release_version }}" --force
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
