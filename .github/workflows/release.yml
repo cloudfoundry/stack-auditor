@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_increment:
+        description: 'Version increment type'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+        default: 'minor'
+        required: true
+      draft:
+        description: 'Create draft release'
+        type: boolean
+        default: true
+        required: true
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get or calculate version
+        id: get_version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --tags
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          current_version=${latest_tag#v}
+          IFS='.' read -ra version_parts <<< "$current_version"
+
+          case "${{ inputs.version_increment }}" in
+            major)
+              new_major=$((version_parts[0] + 1))
+              version="v${new_major}.0.0"
+              ;;
+            minor)
+              new_minor=$((version_parts[1] + 1))
+              version="v${version_parts[0]}.$new_minor.0"
+              ;;
+            patch)
+              new_patch=$((version_parts[2] + 1))
+              version="v${version_parts[0]}.${version_parts[1]}.$new_patch"
+              ;;
+          esac
+          echo "Calculated new version: $version"
+
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            goos: linux
+            goarch: amd64
+            suffix: 64
+          - os: darwin
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+            suffix: amd64
+          - os: darwin
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+            suffix: arm
+          - os: windows
+            arch: amd64
+            goos: windows
+            goarch: amd64
+            suffix: 64
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          check-latest: true
+
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          output_name="stack-auditor-${{ matrix.os }}-${{ matrix.suffix }}"
+          echo "::group::Building for ${{ matrix.os }}-${{ matrix.arch }}"
+          go build -v -trimpath -ldflags="-s -w" -o "dist/$output_name" .
+          echo "::endgroup::"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stack-auditor-${{ matrix.os }}-${{ matrix.suffix }}
+          path: dist/stack-auditor*
+          compression-level: 0
+
+  create-release:
+    needs: [prepare-release, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        run: |
+          echo "# Changes in this release" > release_notes.md
+
+          draft_flag="${{ github.event.inputs.draft || 'true' }}"
+
+          gh release create "${{ needs.prepare-release.outputs.release_version }}" \
+            --draft="$draft_flag" \
+            --title="${{ needs.prepare-release.outputs.release_version }}" \
+            --notes-file=release_notes.md \
+            dist/stack-auditor*
