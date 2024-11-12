@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	plugin_models "code.cloudfoundry.org/cli/plugin/models"
@@ -159,7 +160,7 @@ func (cf *CF) GetAppByName(appName string) (resources.V3App, error) {
 	var apps resources.V3AppsJSON
 	var app resources.V3App
 
-	endpoint := fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", appName, cf.Space.Guid)
+	endpoint := fmt.Sprintf("/v3/apps?names=%s&space_guids=%s", url.QueryEscape(appName), cf.Space.Guid)
 	appJSON, err := cf.CFCurl(endpoint)
 	if err != nil {
 		return app, err
