@@ -186,8 +186,16 @@ func (cf *CF) GetAppInfo(appName string) (appGuid, appState, appStack string, er
 	return app.GUID, app.State, app.Lifecycle.Data.Stack, nil
 }
 
-func (cf *CF) CFCurl(args ...string) ([]string, error) {
-	curlArgs := append([]string{"curl"}, args...)
+func (cf *CF) CFCurl(path string, args ...string) ([]string, error) {
+	u, err := url.Parse(path)
+	if err != nil {
+		return nil, err
+	}
+	u.Scheme = ""
+	u.Host = ""
+
+	curlArgs := []string{"curl", u.String()}
+	curlArgs = append(curlArgs, args...)
 	output, err := cf.Conn.CliCommandWithoutTerminalOutput(curlArgs...)
 	if err != nil {
 		return nil, err
