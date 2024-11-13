@@ -2,7 +2,7 @@ package mocks
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -117,7 +117,7 @@ func FileToString(fileName string) ([]string, error) {
 		return nil, err
 	}
 
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
