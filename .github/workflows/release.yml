@@ -10,7 +10,7 @@ on:
           - major
           - minor
           - patch
-        default: 'minor'
+        default: 'patch'
         required: true
       draft:
         description: 'Create draft release'
@@ -110,8 +110,7 @@ jobs:
           version=${git_tag:1}
           echo "::group::Building for ${{ matrix.os }}-${{ matrix.arch }}"
           go build -v -trimpath \
-            -ldflags="-s -w" \
-            -X main.tagVersion=${version:?} \
+            -ldflags="-s -w -X main.tagVersion=${version:?}" \
             -o "dist/${output_name}" .
           echo "::endgroup::"
 
