@@ -36,8 +36,8 @@ var _ = Describe("CF", func() {
 			Expect(output).To(Equal(mockOutput))
 		})
 
-		when("given a fully qualified path", func() {
-			it("makes it a relative URL", func() {
+		When("given a fully qualified path", func() {
+			It("makes it a relative URL", func() {
 				mockOutput, err := mocks.FileToString("apps.json")
 				Expect(err).NotTo(HaveOccurred())
 
@@ -49,8 +49,8 @@ var _ = Describe("CF", func() {
 			})
 		})
 
-		when("hitting a V3 endpoint and CAPI returns an error JSON", func() {
-			it("returns the error details in an error", func() {
+		When("hitting a V3 endpoint and CAPI returns an error JSON", func() {
+			It("returns the error details in an error", func() {
 				mockOutput, err := mocks.FileToString("errorV3.json")
 				Expect(err).NotTo(HaveOccurred())
 
