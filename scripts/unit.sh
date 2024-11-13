@@ -4,7 +4,7 @@ set -uo pipefail
 cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 
 echo "Run Unit Tests"
-go test ./... -v -run Unit
+ginkgo -r -v --label-filter="!integration"
 exit_code=$?
 
 if [ "$exit_code" != "0" ]; then

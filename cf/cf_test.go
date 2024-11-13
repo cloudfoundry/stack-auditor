@@ -2,37 +2,30 @@ package cf_test
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/cloudfoundry/stack-auditor/cf"
 
 	"github.com/cloudfoundry/stack-auditor/mocks"
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/sclevine/spec"
-	"github.com/sclevine/spec/report"
 )
 
-func TestUnitCF(t *testing.T) {
-	spec.Run(t, "CF", testCF, spec.Report(report.Terminal{}))
-}
-
-func testCF(t *testing.T, when spec.G, it spec.S) {
+var _ = Describe("CF", func() {
 	var (
 		mockCtrl       *gomock.Controller
 		mockConnection *mocks.MockCliConnection
 		c              cf.CF
 	)
 
-	it.Before(func() {
-		RegisterTestingT(t)
-		mockCtrl = gomock.NewController(t)
+	BeforeEach(func() {
+		mockCtrl = gomock.NewController(GinkgoT())
 		mockConnection = mocks.NewMockCliConnection(mockCtrl)
 		c = cf.CF{Conn: mockConnection}
 	})
 
-	when("CFCurl", func() {
-		it("performs a successful CF curl", func() {
+	When("CFCurl", func() {
+		It("performs a successful CF curl", func() {
 			mockOutput, err := mocks.FileToString("apps.json")
 			Expect(err).ToNot(HaveOccurred())
 
@@ -68,8 +61,8 @@ func testCF(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("hitting a V2 endpoint and CAPI returns an error JSON", func() {
-			it("returns the error details in an error", func() {
+		When("hitting a V2 endpoint and CAPI returns an error JSON", func() {
+			It("returns the error details in an error", func() {
 				mockOutput, err := mocks.FileToString("errorV2.json")
 				Expect(err).NotTo(HaveOccurred())
 
@@ -81,8 +74,8 @@ func testCF(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 
-		when("GetStackGUID", func() {
-			it("returns an error when given an invalid stack", func() {
+		When("GetStackGUID", func() {
+			It("returns an error when given an invalid stack", func() {
 				invalidStack := "NotAStack"
 				mockConnection.EXPECT().CliCommandWithoutTerminalOutput(
 					"stack",
@@ -95,4 +88,4 @@ func testCF(t *testing.T, when spec.G, it spec.S) {
 			})
 		})
 	})
-}
+})
