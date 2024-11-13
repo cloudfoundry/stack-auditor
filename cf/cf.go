@@ -18,9 +18,9 @@ type CF struct {
 	Space plugin_models.Space
 }
 
-const (
-	V2ResultsPerPage = 100
-	V3ResultsPerPage = 5000
+var (
+	V2ResultsPerPage = "100"
+	V3ResultsPerPage = "5000"
 )
 
 func (cf *CF) GetAppsAndStacks() (resources.Apps, error) {
@@ -71,7 +71,7 @@ func (cf *CF) GetStackGUID(stackName string) (string, error) {
 
 func (cf *CF) GetAllBuildpacks() ([]resources.BuildpacksJSON, error) {
 	var allBuildpacks []resources.BuildpacksJSON
-	nextURL := fmt.Sprintf("/v2/buildpacks?results-per-page=%d", V2ResultsPerPage)
+	nextURL := fmt.Sprintf("/v2/buildpacks?results-per-page=%s", V2ResultsPerPage)
 	for nextURL != "" {
 		buildpackJSON, err := cf.CFCurl(nextURL)
 
@@ -118,7 +118,7 @@ func (cf *CF) getOrgs() (resources.Orgs, error) {
 
 func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 	var allSpaces resources.Spaces
-	nextSpaceURL := fmt.Sprintf("/v2/spaces?results-per-page=%d", V2ResultsPerPage)
+	nextSpaceURL := fmt.Sprintf("/v2/spaces?results-per-page=%s", V2ResultsPerPage)
 	for nextSpaceURL != "" {
 		spacesJSON, err := cf.CFCurl(nextSpaceURL)
 		if err != nil {
@@ -138,7 +138,7 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 
 func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 	var allApps []resources.V3AppsJSON
-	nextURL := fmt.Sprintf("/v3/apps?per_page=%d", V3ResultsPerPage)
+	nextURL := fmt.Sprintf("/v3/apps?per_page=%s", V3ResultsPerPage)
 	for nextURL != "" {
 		appJSON, err := cf.CFCurl(nextURL)
 		if err != nil {

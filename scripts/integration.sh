@@ -4,6 +4,7 @@ set -euo pipefail
 
 cd "$( dirname "${BASH_SOURCE[0]}" )/.."
 
+export buildintegration=true
 scripts/install.sh
 
 echo "Run Integration Tests"
