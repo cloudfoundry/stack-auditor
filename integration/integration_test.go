@@ -3,7 +3,6 @@ package integration_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -243,7 +242,7 @@ func GetOrgAndSpace() (string, string, error) {
 	if cfHome == "" {
 		cfHome = os.Getenv("HOME")
 	}
-	bytes, err := ioutil.ReadFile(filepath.Join(cfHome, ".cf", "config.json"))
+	bytes, err := os.ReadFile(filepath.Join(cfHome, ".cf", "config.json"))
 	if err != nil {
 		return "", "", err
 	}
