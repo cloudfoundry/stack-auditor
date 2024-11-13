@@ -118,9 +118,9 @@ var _ = Describe("Integration", Label("integration"), func() {
 		})
 	})
 
-	PWhen("Audit Stack", func() {
-		//const appCount = cf.V3ResultsPerPage + 1 TODO:// Fix this to test multi-page results
-		const appCount = 10
+	When("Audit Stack", func() {
+		// 2 apps forces pagination if integration test binary is built which forces per page to 1. See ./script/build.sh
+		const appCount = 2
 		var (
 			apps               [appCount]*cutlass.App
 			spaceName, orgName string
@@ -137,7 +137,7 @@ var _ = Describe("Integration", Label("integration"), func() {
 			for i := 0; i < appCount; i++ {
 				apps[i] = cutlass.New(filepath.Join("testdata", "simple_app"))
 				apps[i].Stack = stacks[i%len(stacks)]
-				apps[i].Buildpacks = []string{"https://github.com/cloudfoundry/binary-buildpack#master"}
+				apps[i].Buildpacks = []string{"https://github.com/cloudfoundry/ruby-buildpack#v1.9.4"}
 
 				go func(i int) { // Maybe use a worker pool to not bombard our api
 					defer wg.Done()
