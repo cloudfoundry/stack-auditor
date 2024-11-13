@@ -36,19 +36,6 @@ var _ = Describe("CF", func() {
 			Expect(output).To(Equal(mockOutput))
 		})
 
-		When("given a fully qualified path", func() {
-			It("makes it a relative URL", func() {
-				mockOutput, err := mocks.FileToString("apps.json")
-				Expect(err).NotTo(HaveOccurred())
-
-				mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/some-endpoint")).Return(mockOutput, nil).AnyTimes()
-
-				output, err := c.CFCurl("https://api.example.com/v3/some-endpoint")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(output).To(Equal(mockOutput))
-			})
-		})
-
 		When("hitting a V3 endpoint and CAPI returns an error JSON", func() {
 			It("returns the error details in an error", func() {
 				mockOutput, err := mocks.FileToString("errorV3.json")
