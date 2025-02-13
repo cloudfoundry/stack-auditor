@@ -130,7 +130,7 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 			break
 		}
 		if err := json.Unmarshal([]byte(strings.Join(spacesJSON, "")), &spaces); err != nil {
-			return nil, fmt.Errorf("error unmarshaling spaces json: %v", spacesJSON)
+			return nil, fmt.Errorf("error unmarshaling spaces json: %v", err)
 		}
 		nextSpaceURL = spaces.NextURL
 		allSpaces = append(allSpaces, spaces)
