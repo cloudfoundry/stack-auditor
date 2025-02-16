@@ -27,7 +27,6 @@ var _ = Describe("CF", func() {
 
 	When("getAllSpaces", func() {
 		It("performs a successful getAllSpaces with empty Json", func() {
-			//mockOutput, err := mocks.FileToString("apps.json")
 			mockOutput := make([]string, 3)
 			var allApps []resources.V3AppsJSON
 			cf.V3ResultsPerPage = "1"
