@@ -6,6 +6,7 @@ import (
 	"github.com/cloudfoundry/stack-auditor/cf"
 
 	"github.com/cloudfoundry/stack-auditor/mocks"
+	"github.com/cloudfoundry/stack-auditor/resources"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,6 +23,20 @@ var _ = Describe("CF", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockConnection = mocks.NewMockCliConnection(mockCtrl)
 		c = cf.CF{Conn: mockConnection}
+	})
+
+	When("getAllSpaces", func() {
+		It("performs a successful getAllSpaces with empty Json", func() {
+			//mockOutput, err := mocks.FileToString("apps.json")
+			mockOutput := make([]string, 3)
+			var allApps []resources.V3AppsJSON
+			cf.V3ResultsPerPage = "1"
+			c.Space.Guid = "1234"
+			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?per_page=1")).Return(mockOutput, nil).AnyTimes()
+			output, err := c.GetAllApps()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal(allApps))
+		})
 	})
 
 	When("CFCurl", func() {

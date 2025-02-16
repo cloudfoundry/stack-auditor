@@ -154,7 +154,7 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 		}
 
 		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
-			return nil, fmt.Errorf("error unmarshaling apps json: %v", err)
+			return nil, fmt.Errorf("error unmarshaling apps json: %v", appJSON)
 		}
 		nextURL = apps.Pagination.Next.Href
 		allApps = append(allApps, apps)
