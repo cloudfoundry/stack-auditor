@@ -25,12 +25,11 @@ var _ = Describe("CF", func() {
 		c = cf.CF{Conn: mockConnection}
 	})
 
-	When("getAllSpaces", func() {
-		It("performs a successful getAllSpaces with empty Json", func() {
+	When("getAllApps", func() {
+		It("performs a successful getAllApps with empty Json", func() {
 			mockOutput := make([]string, 3)
 			var allApps []resources.V3AppsJSON
 			cf.V3ResultsPerPage = "1"
-			c.Space.Guid = "1234"
 			mockConnection.EXPECT().CliCommandWithoutTerminalOutput("curl", fmt.Sprintf("/v3/apps?per_page=1")).Return(mockOutput, nil).AnyTimes()
 			output, err := c.GetAllApps()
 			Expect(err).NotTo(HaveOccurred())
