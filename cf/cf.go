@@ -126,6 +126,9 @@ func (cf *CF) getAllSpaces() (resources.Spaces, error) {
 		}
 
 		var spaces resources.SpacesJSON
+		if strings.Join(spacesJSON, "") == "" {
+			break
+		}
 		if err := json.Unmarshal([]byte(strings.Join(spacesJSON, "")), &spaces); err != nil {
 			return nil, fmt.Errorf("error unmarshaling spaces json: %v", err)
 		}
@@ -146,9 +149,12 @@ func (cf *CF) GetAllApps() ([]resources.V3AppsJSON, error) {
 		}
 
 		var apps resources.V3AppsJSON
+		if strings.Join(appJSON, "") == "" {
+			break
+		}
 
 		if err := json.Unmarshal([]byte(strings.Join(appJSON, "")), &apps); err != nil {
-			return nil, fmt.Errorf("error unmarshaling apps json: %v", err)
+			return nil, fmt.Errorf("error unmarshaling apps json: %v", appJSON)
 		}
 		nextURL = apps.Pagination.Next.Href
 		allApps = append(allApps, apps)
