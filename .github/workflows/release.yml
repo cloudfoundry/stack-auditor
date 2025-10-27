@@ -115,7 +115,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: stack-auditor-${{ matrix.os }}-${{ matrix.suffix }}
           path: dist/stack-auditor*
