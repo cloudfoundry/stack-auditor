@@ -8,7 +8,7 @@ require (
 	code.cloudfoundry.org/cli v7.1.0+incompatible
 	github.com/cloudfoundry/libbuildpack v0.0.0-20230209225346-0e58f7be61d4
 	github.com/golang/mock v1.6.0
-	github.com/onsi/ginkgo/v2 v2.27.1
+	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 )
 
@@ -27,7 +27,6 @@ require (
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
