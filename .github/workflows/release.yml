@@ -139,7 +139,7 @@ jobs:
           git push origin "${{ needs.prepare-release.outputs.release_version }}" --force
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: dist
           merge-multiple: true
