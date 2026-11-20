@@ -1,6 +1,6 @@
 module github.com/cloudfoundry/stack-auditor
 
-go 1.26.9
+go 1.26.11
 
 require (
 	code.cloudfoundry.org/cli v7.1.0+incompatible
